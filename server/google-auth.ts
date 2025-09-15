@@ -687,32 +687,18 @@ router.get("/google/callback",
         });
       });
       
-      // Check if user needs trial selection (new users only, not admins)
-      if (user.needsTrialSelection && !user.isAdmin && user.role !== 'admin') {
-        console.log('[OAuth] New user needs trial selection, redirecting to /trial-selection');
-        safeDebugLog('[OAuth Debug] User needs trial selection, redirecting to trial-selection');
-        return res.redirect("/trial-selection");
-      }
+      // TEMPORARY FIX: Always redirect to a simple page to test session persistence
+      console.log('[OAuth] TEMP: Bypassing all logic, redirecting to /auth?oauth=success');
+      console.log('[OAuth] User info:', {
+        id: user.id,
+        email: maskEmail(user.email || ''),
+        isAdmin: user.isAdmin,
+        needsTrialSelection: user.needsTrialSelection,
+        sessionUserId: req.session.userId,
+        sessionId: req.sessionID
+      });
 
-      // Admin users or users with completed trial selection go to dashboard
-      if (user.isAdmin || user.role === 'admin') {
-        console.log('[OAuth] Admin user authenticated, redirecting to dashboard');
-      } else {
-        console.log('[OAuth] Existing user authenticated, redirecting to dashboard');
-      }
-      
-      // Redirect to dashboard for authenticated users
-      let returnTo = "/dashboard"; // Default to dashboard for authenticated users
-
-      // Check both returnTo and returnUrl for compatibility
-      const sessionReturnUrl = req.session.returnTo || req.session.returnUrl;
-
-      if (sessionReturnUrl && isValidReturnUrl(sessionReturnUrl)) {
-        returnTo = sessionReturnUrl;
-        console.log('[OAuth] Using session return URL:', returnTo);
-      } else {
-        console.log('[OAuth] Using default redirect to dashboard');
-      }
+      let returnTo = "/auth?oauth=success"; // Simple test page
       
       // Clean up return URLs from session and save again
       delete req.session.returnTo;
