@@ -264,15 +264,33 @@ function createUserSession(req: Request, user: User) {
 
 // Get the base URL for callbacks
 function getCallbackUrl(req: Request): string {
-  // Use APP_URL if available for consistent callback URL
-  if (process.env.APP_URL) {
-    return `${process.env.APP_URL}/api/auth/google/callback`;
+  // Use explicit environment variable if set
+  if (process.env.OAUTH_CALLBACK_URL) {
+    return process.env.OAUTH_CALLBACK_URL;
   }
 
-  // In production, use the actual domain from request
+  // In production, detect the actual domain being used
   if (process.env.NODE_ENV === 'production') {
-    const host = req.get('Host') || 'myaimediamgr.onrender.com';
-    return `https://${host}/api/auth/google/callback`;
+    const host = req.get('host') || req.get('x-forwarded-host');
+
+    // Render deployment
+    if (host && host.includes('.onrender.com')) {
+      return `https://${host}/api/auth/google/callback`;
+    }
+
+    // Replit deployment
+    if (host && (host.includes('.replit.dev') || host.includes('.repl.co'))) {
+      return `https://${host}/api/auth/google/callback`;
+    }
+
+    // Custom domain fallback
+    return 'https://myaimediamgr.com/api/auth/google/callback';
+  }
+
+  // In development, check for Replit domains first
+  if (process.env.REPLIT_DOMAINS) {
+    const firstDomain = process.env.REPLIT_DOMAINS.split(',')[0];
+    return `https://${firstDomain}/api/auth/google/callback`;
   }
 
   // Local development
@@ -284,7 +302,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.APP_URL}/api/auth/google/callback`,
+    callbackURL: '/api/auth/google/callback', // Use relative URL to work with any domain
     scope: ['openid', 'email', 'profile'],
     state: true, // Enable state parameter for CSRF protection
     passReqToCallback: true,
