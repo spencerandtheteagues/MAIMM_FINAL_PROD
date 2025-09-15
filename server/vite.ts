@@ -73,7 +73,27 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  // In production, the server runs from dist/index.js, so public files are at dist/public
+  // In development or when not bundled, look for public in the project root
+  let distPath = path.resolve(import.meta.dirname, "public");
+
+  // If running from bundled dist/index.js, import.meta.dirname is 'dist'
+  // If running from server/index.ts, import.meta.dirname is 'server'
+  if (!fs.existsSync(distPath)) {
+    // Try project root + dist/public (for development)
+    const rootDistPath = path.resolve(process.cwd(), "dist", "public");
+    if (fs.existsSync(rootDistPath)) {
+      distPath = rootDistPath;
+    } else {
+      // Try one level up from server + dist/public
+      const upDistPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+      if (fs.existsSync(upDistPath)) {
+        distPath = upDistPath;
+      }
+    }
+  }
+
+  console.log(`[Static Server] Serving static files from: ${distPath}`);
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
