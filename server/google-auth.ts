@@ -816,16 +816,9 @@ router.get("/google/callback",
       console.log('[OAuth] Current cookies:', req.headers.cookie || 'none');
       console.log('[OAuth] Response headers before send:', res.getHeaders());
 
-      // Send response with explicit headers to ensure cookies are set
-      res.status(302);
-      res.setHeader('Location', returnTo);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-
-      // Log final response details
-      console.log('[OAuth] Final response status:', res.statusCode);
-      console.log('[OAuth] Final response headers:', res.getHeaders());
-
-      res.end();
+      // Use standard redirect which properly handles cookies
+      console.log('[OAuth] Final response headers before redirect:', res.getHeaders());
+      res.redirect(returnTo);
     } catch (error) {
       console.error('[OAuth Error] Exception in callback success handler:', error instanceof Error ? error.message : error);
       safeDebugLog('[OAuth Error] Exception in callback success handler:', {
