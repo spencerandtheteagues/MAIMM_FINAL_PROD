@@ -109,6 +109,56 @@ async function generateUniqueReferralCode(): Promise<string> {
 
 const router = Router();
 
+// Test OAuth simulation endpoint
+router.get('/test-oauth-simulation', async (req: Request, res: Response) => {
+  try {
+    // Simulate finding an existing admin user (like Spencer)
+    const user = await storage.getUserByEmail('spencertheteague@gmail.com');
+    if (!user) {
+      return res.status(404).json({ error: 'Test user not found' });
+    }
+
+    console.log('[OAuth Test] Simulating OAuth for user:', user.email);
+
+    // Create session exactly like OAuth does
+    createUserSession(req, user);
+
+    // Save session
+    await new Promise<void>((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('[OAuth Test] Session save failed:', err);
+          reject(err);
+        } else {
+          console.log('[OAuth Test] Session saved successfully');
+          resolve();
+        }
+      });
+    });
+
+    // Check session data
+    console.log('[OAuth Test] Session data:', {
+      sessionId: req.sessionID,
+      userId: req.session.userId,
+      userEmail: req.session.user?.email
+    });
+
+    // Return success with session info
+    res.json({
+      success: true,
+      message: 'OAuth simulation completed',
+      sessionId: req.sessionID,
+      userId: req.session.userId,
+      userEmail: req.session.user?.email,
+      redirectUrl: '/dashboard'
+    });
+
+  } catch (error) {
+    console.error('[OAuth Test] Error:', error);
+    res.status(500).json({ error: 'OAuth simulation failed', details: error instanceof Error ? error.message : error });
+  }
+});
+
 // Store recent OAuth events for debugging
 const recentOAuthEvents: any[] = [];
 function logOAuthEvent(event: string, data: any) {
