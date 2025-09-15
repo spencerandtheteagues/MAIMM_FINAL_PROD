@@ -2,12 +2,12 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import session from "express-session";
-import connectPg from "connect-pg-simple";
+import cookieParser from "cookie-parser";
 import passport from "passport";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import stripeWebhook from "./stripe-webhook";
+import { authOptional } from "./auth/jwt";
 
 const app = express();
 
@@ -76,97 +76,33 @@ app.use('/api/stripe', stripeWebhook);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+import cookieParser from "cookie-parser";
+import { authOptional } from "./auth/jwt";
+
+// ... (keep other imports like express, helmet, cors, etc.)
+
+const app = express();
+
+// Trust proxy for rate limiting to work correctly behind proxies
+app.set("trust proxy", 1);
+
+// ... (keep www redirect, helmet, cors, rate limiting, stripe webhook, body parser, static assets)
+
+// Body parser middleware - MUST come AFTER webhook routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(cookieParser()); // Add cookie parser
+
 // Serve attached assets (generated images, videos, etc.)
 app.use('/attached_assets', express.static('attached_assets'));
 
-// Session and Passport middleware - MUST be mounted BEFORE routes
-const PgStore = connectPg(session);
-
-// Sanity check early
-if (!process.env.DATABASE_URL) {
-  console.error('[BOOT] Missing DATABASE_URL — session store cannot connect.');
-}
-
-const store = new PgStore({
-  // Prefer conObject so we can force TLS; Render usually requires it
-  conObject: {
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }, // Render PG often requires this
-  },
-  schemaName: 'public',
-  tableName: 'session',
-  createTableIfMissing: false,  // <- disable auto DDL
-  pruneSessionInterval: false,  // <- disable auto pruner (it touches DDL paths)
-});
-
-store.on('error', (err: any) => {
-  console.error('[SESSION STORE ERROR]', {
-    message: err?.message,
-    code: err?.code,
-    detail: err?.detail,
-    hint: err?.hint,
-    schema: err?.schema,
-    table: err?.table,
-    where: err?.where,
-    stack: err?.stack,
-  });
-});
-
-app.use(session({
-  name: 'mam.sid',
-  secret: process.env.SESSION_SECRET!,    // must be set in Render env
-  store,
-  resave: false,
-  saveUninitialized: false,
-  proxy: true,
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',                      // works for top-level OAuth redirects
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  },
-}));
-
+// Initialize passport and JWT middleware
 app.use(passport.initialize());
-app.use(passport.session());
-console.log('[Server] Session and Passport middleware mounted in index.ts');
+app.use(authOptional); // This will attach `req.user` if a valid JWT is present
 
-// Session health check endpoint for debugging
-app.get('/__session-health', (req, res) => {
-  req.session.__ts = Date.now();
-  req.session.save((err) => {
-    if (err) {
-      console.error('[SESSION HEALTH] save failed', err);
-      return res.status(500).json({ ok: false, err: String(err) });
-    }
-    res.json({ ok: true });
-  });
-});
+console.log('[Server] Passport and JWT middleware mounted in index.ts');
 
-// Set up Passport serialize/deserialize - MUST be done before routes
-passport.serializeUser((user: any, done) => {
-  const id = user.id ?? user.user_id ?? user.uid;
-  if (!id) {
-    console.error('[passport] serialize ERROR: No user id found:', user);
-    return done(new Error('No user id in serializeUser'));
-  }
-  console.log('[passport] serialize', id);
-  done(null, id);
-});
-
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    // Import storage dynamically to avoid circular imports
-    const { storage } = await import('./storage');
-    const user = await storage.getUser(id);
-    console.log('[passport] deserialize', id, Boolean(user));
-    done(null, user || false);
-  } catch (e) {
-    console.error('[passport] deserialize ERROR:', e);
-    done(e);
-  }
-});
+// REMOVED all express-session, connect-pg-simple, passport.session(), serialize/deserialize code
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -206,8 +142,11 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    // It's better practice to not re-throw the error unless you have a higher-level catcher
+    // throw err; 
+    console.error("[FATAL ERROR]", err);
   });
+
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
