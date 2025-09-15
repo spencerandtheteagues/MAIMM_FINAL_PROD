@@ -714,17 +714,39 @@ router.get("/google/callback",
         console.log('[OAuth] Using default redirect to dashboard');
       }
       
-      // Clean up return URLs from session
+      // Clean up return URLs from session and save again
       delete req.session.returnTo;
       delete req.session.returnUrl;
-      
+
+      // Save session again after cleanup to ensure all changes are persisted
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('[OAuth Error] Final session save failed:', err.message);
+            reject(err);
+          } else {
+            console.log('[OAuth] Final session save successful');
+            resolve();
+          }
+        });
+      });
+
       console.log('[OAuth] Final redirect to:', returnTo);
       safeDebugLog('[OAuth Debug] Final redirect to:', { returnTo });
-      
+
+      logOAuthEvent('oauth-redirect', {
+        sessionId: req.sessionID,
+        userId: user.id,
+        redirectTo: returnTo,
+        isAdmin: user.isAdmin,
+        needsTrialSelection: user.needsTrialSelection
+      });
+
       // Send response with explicit headers to ensure cookies are set
       res.status(302);
       res.setHeader('Location', returnTo);
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Set-Cookie', res.getHeaders()['set-cookie'] || []);
       res.end();
     } catch (error) {
       console.error('[OAuth Error] Exception in callback success handler:', error instanceof Error ? error.message : error);
