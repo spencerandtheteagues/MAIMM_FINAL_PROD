@@ -35,15 +35,49 @@ billingRouter.post("/webhook", async (req:any,res:any)=>{
   }
   if (event.type === "checkout.session.completed"){
     const cs = event.data.object as Stripe.Checkout.Session;
-    const userId = cs.metadata?.userId;
-    const credits = Number(cs.metadata?.credits || 0);
-    if (userId && credits>0){
-      const user = await storage.getUser(userId);
-      if (user) {
-        await storage.updateUser(userId, {
-          credits: (user.credits || 0) + credits,
-          totalCreditsUsed: user.totalCreditsUsed || 0
-        });
+    const purpose = cs.metadata?.purpose;
+    const userIdMeta = cs.metadata?.userId as string | undefined;
+
+    if (purpose === 'pro_trial_1usd') {
+      try {
+        let user: any = null;
+        if (userIdMeta) user = await storage.getUser(userIdMeta);
+        else if (cs.customer_email) user = await storage.getUserByEmail?.(cs.customer_email);
+
+        if (user) {
+          const now = new Date();
+          const end = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+          await storage.updateUser(user.id, {
+            subscriptionStatus: 'trial',
+            trialVariant: 'pro14_1usd',
+            trialStartedAt: now,
+            trialEndsAt: end,
+            needsTrialSelection: false
+          });
+          if ((storage as any).addCreditTransaction) {
+            await (storage as any).addCreditTransaction({
+              userId: user.id,
+              amount: 210,
+              type: 'trial_grant',
+              description: 'Pro Trial credits (14d, $1)',
+              stripeSessionId: cs.id
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error applying $1 pro trial:', e);
+      }
+    } else {
+      const userId = userIdMeta;
+      const credits = Number(cs.metadata?.credits || 0);
+      if (userId && credits > 0){
+        const user = await storage.getUser(userId);
+        if (user) {
+          await storage.updateUser(userId, {
+            credits: (user.credits || 0) + credits,
+            totalCreditsUsed: user.totalCreditsUsed || 0
+          });
+        }
       }
     }
   }

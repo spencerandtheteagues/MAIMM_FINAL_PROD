@@ -33,10 +33,15 @@ const requireAuth = async (req: any, res: any, next: any) => {
 
 // Get the base URL for redirects
 function getBaseUrl(req: any): string {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.BASE_URL) return process.env.BASE_URL;
   if (process.env.REPLIT_DOMAINS) {
     const firstDomain = process.env.REPLIT_DOMAINS.split(',')[0];
     return `https://${firstDomain}`;
   }
+  const host = req.get?.('host');
+  const proto = req.get?.('x-forwarded-proto') || req.protocol || 'http';
+  if (host) return `${proto}://${host}`;
   return `http://localhost:${process.env.PORT || 5000}`;
 }
 
@@ -471,6 +476,41 @@ router.post("/create-pro-trial", requireAuth, async (req, res) => {
     res.json({ url: session.url });
   } catch (err: any) {
     console.error("Error creating pro trial checkout:", err);
+// Create $1 Pro Trial (14 days) checkout session
+router.post("/create-pro-trial", requireAuth, async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const user = await storage.getUser(userId!);
+    const baseUrl = getBaseUrl(req);
+    const priceId = process.env.STRIPE_PRO_TRIAL_PRODUCT;
+    if (!priceId) return res.status(500).json({ message: "Missing STRIPE_PRO_TRIAL_PRODUCT" });
+
+    let customerId = user?.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user?.email || undefined });
+      customerId = customer.id;
+      if (user) await storage.updateUser(user.id, { stripeCustomerId: customerId });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'payment',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${baseUrl}/trial/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/choose-trial?canceled=1`,
+      payment_intent_data: { metadata: { purpose: 'pro_trial_1usd', userId } },
+      metadata: { purpose: 'pro_trial_1usd', userId }
+    });
+
+    res.json({ url: session.url });
+  } catch (err: any) {
+    console.error("Error creating pro trial checkout:", err);
+    res.status(500).json({ message: "Error creating pro trial checkout: " + err.message });
+  }
+});
+
     res.status(500).json({ message: "Error creating pro trial checkout: " + err.message });
   }
 });

@@ -194,9 +194,9 @@ function createUserSession(req: Request, user: User) {
 
 // Get the base URL for callbacks
 function getCallbackUrl(req: Request): string {
-  // In production, always use the apex domain for OAuth consistency
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://myaimediamgr.com/api/auth/google/callback';
+  const appUrl = process.env.APP_URL;
+  if (appUrl) {
+    return `${appUrl}/api/auth/google/callback`;
   }
   
   // In development, check for Replit domains first
