@@ -168,8 +168,8 @@ export default function CheckoutPage() {
       // Create Stripe checkout session and redirect to Stripe-hosted page
       const response = await apiRequest(
         "POST",
-        "/api/billing/create-checkout-session",
-        { planId: selectedPlan.id }
+        trial ? "/api/stripe/create-pro-trial" : "/api/billing/create-checkout-session",
+        trial ? {} : { planId: selectedPlan.id }
       );
       
       const data = await response.json();
