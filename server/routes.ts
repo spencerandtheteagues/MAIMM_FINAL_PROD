@@ -269,6 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Wire up Stripe billing routes
   app.use("/api/billing", stripeRoutes);
+  app.use("/api/stripe", stripeRoutes);
   
   // Also expose subscription and credit routes
   app.use("/api/subscription", stripeRoutes);

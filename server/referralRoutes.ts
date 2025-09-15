@@ -35,7 +35,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
     // Get recent referrals
     const recentReferrals = await storage.getReferralsByReferrer(userId);
 
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const baseUrl = process.env.APP_URL || process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const referralLink = `${baseUrl}/register?ref=${userWithCode.referralCode}`;
 
     res.json({
@@ -63,7 +63,7 @@ router.post("/generate-code", requireAuth, async (req: Request, res: Response) =
       return res.status(404).json({ message: "User not found" });
     }
 
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const baseUrl = process.env.APP_URL || process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const referralLink = `${baseUrl}/register?ref=${user.referralCode}`;
 
     res.json({

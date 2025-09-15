@@ -183,6 +183,43 @@ router.post("/webhook",
           break;
         }
         
+case 'checkout.session.completed': {
+  const session = event.data.object as Stripe.Checkout.Session;
+
+  if ((session as any)?.metadata?.purpose === 'pro_trial_1usd') {
+    try {
+      const userId = (session as any).metadata.userId as string | undefined;
+      let user: any = null;
+      if (userId) user = await storage.getUser(userId);
+      else if ((session as any).customer_email) user = await storage.getUserByEmail((session as any).customer_email);
+
+      if (user) {
+        const now = new Date();
+        const end = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+        await storage.updateUser(user.id, {
+          subscriptionStatus: 'trial',
+          trialVariant: 'pro14_1usd',
+          trialStartedAt: now,
+          trialEndsAt: end,
+          needsTrialSelection: false
+        });
+        if ((storage as any).addCreditTransaction) {
+          await (storage as any).addCreditTransaction({
+            userId: user.id,
+            amount: 210,
+            type: 'trial_grant',
+            description: 'Pro Trial credits (14d, $1)',
+            stripeSessionId: (session as any).id
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error applying $1 pro trial:', e);
+    }
+  }
+  break;
+}
+
         default:
           console.log(`⚠️ Unhandled event type: ${event.type}`);
       }
