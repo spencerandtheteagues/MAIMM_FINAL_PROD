@@ -2,6 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import passport from "passport";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import stripeWebhook from "./stripe-webhook";
@@ -75,6 +78,56 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Serve attached assets (generated images, videos, etc.)
 app.use('/attached_assets', express.static('attached_assets'));
+
+// Session and Passport middleware - MUST be mounted BEFORE routes
+const PgStore = connectPg(session);
+app.use(session({
+  name: 'mam.sid',
+  secret: process.env.SESSION_SECRET || "myaimediamgr-secret-key-change-in-production",
+  store: new PgStore({
+    conString: process.env.DATABASE_URL!,
+    tableName: 'session',
+    createTableIfMissing: true,
+  }),
+  resave: false,
+  saveUninitialized: false,
+  proxy: true,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+console.log('[Server] Session and Passport middleware mounted in index.ts');
+
+// Set up Passport serialize/deserialize - MUST be done before routes
+passport.serializeUser((user: any, done) => {
+  const id = user.id ?? user.user_id ?? user.uid;
+  if (!id) {
+    console.error('[passport] serialize ERROR: No user id found:', user);
+    return done(new Error('No user id in serializeUser'));
+  }
+  console.log('[passport] serialize', id);
+  done(null, id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    // Import storage dynamically to avoid circular imports
+    const { storage } = await import('./storage');
+    const user = await storage.getUser(id);
+    console.log('[passport] deserialize', id, Boolean(user));
+    done(null, user || false);
+  } catch (e) {
+    console.error('[passport] deserialize ERROR:', e);
+    done(e);
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

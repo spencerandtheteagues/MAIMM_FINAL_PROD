@@ -409,44 +409,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     }
   }));
 
-  passport.serializeUser((user: any, done) => {
-    console.log('[passport] serialize user:', user?.id);
-    safeDebugLog('[OAuth Debug] Serializing user:', {
-      userId: user?.id,
-      email: user?.email,
-    });
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: string, done) => {
-    console.log('[passport] deserialize user ID:', id);
-    safeDebugLog('[OAuth Debug] Deserializing user ID:', { userId: id });
-    try {
-      const user = await storage.getUser(id);
-      console.log('[passport] user found:', !!user);
-      safeDebugLog('[OAuth Debug] User deserialized:', {
-        userId: user?.id,
-        email: user?.email,
-        found: !!user,
-      });
-      done(null, user);
-    } catch (error) {
-      safeDebugLog('[OAuth Error] User deserialization failed:', {
-        userId: id,
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: isDebugEnabled ? error.stack : undefined,
-        } : error,
-      });
-      done(error);
-    }
-  });
+  // Serialize/deserialize functions are now set up in index.ts to avoid duplicates
 }
 
-// Initialize passport middleware
-router.use(passport.initialize());
-router.use(passport.session());
+// Passport middleware is now mounted in index.ts to avoid duplicates
 
 // Helper to validate return URL to prevent open redirect attacks
 function isValidReturnUrl(url: string): boolean {
@@ -644,12 +610,17 @@ router.get("/google/callback",
       return res.redirect(`/auth?error=google_oauth_error&details=${encodeURIComponent(req.query.error as string)}`);
     }
     
+    console.log('[OAuth] About to call passport.authenticate for callback');
+
     passport.authenticate('google', {
       failureRedirect: '/auth?error=google_auth_failed',
       failureMessage: true,
       session: true, // Explicitly enable session support
     })(req, res, (err: any) => {
+      console.log('[OAuth] Passport authenticate callback called, err:', !!err, 'req.user:', !!req.user);
+
       if (err) {
+        console.error('[OAuth Error] Passport authentication error:', err);
         safeDebugLog('[OAuth Error] Passport authentication failed in callback:', {
           ...debugInfo,
           error: err instanceof Error ? {
@@ -660,6 +631,8 @@ router.get("/google/callback",
         });
         return res.redirect(`/auth?error=passport_auth_failed&details=${encodeURIComponent(err.message || 'Unknown error')}`);
       }
+
+      console.log('[OAuth] Passport authentication successful, calling next()');
       next();
     });
   },

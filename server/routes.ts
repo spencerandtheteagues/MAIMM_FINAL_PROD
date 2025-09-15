@@ -7,10 +7,8 @@ import { aiService } from "./ai-service";
 import aiRoutes from "./aiRoutes";
 import aiChatRoutes from "./aiChatRoutes";
 import { generateXAuthUrl, handleXOAuthCallback, postToXWithOAuth } from "./x-oauth";
-import { getSession } from "./replitAuth";
 import authRoutes, { requireAuth, requireAdmin } from "./auth";
 import googleAuthRoutes from "./google-auth";
-import passport from "passport";
 import stripeRoutes from "./stripeRoutes";
 import userRoutes from "./userRoutes";
 import adminRoutes from "./adminRoutes";
@@ -96,13 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Metrics endpoint (no auth for monitoring)
   app.get("/metrics", createMetricsRoute());
   
-  // Session middleware (always needed)
-  app.use(getSession());
-
-  // Passport middleware - MUST come after session middleware
-  app.use(passport.initialize());
-  app.use(passport.session());
-  console.log('[Server] Passport middleware mounted');
+  // Session and Passport middleware are now mounted in index.ts
 
   // Use app auth routes (Replit auth disabled for Render deployment)
   app.use("/api/auth", authRoutes);
@@ -324,6 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[API] req.user exists:', !!req.user);
       console.log('[API] req.user?.claims?.sub:', req.user?.claims?.sub || 'none');
       console.log('[API] Request cookies:', req.headers.cookie ? 'present' : 'none');
+      console.log('[API] session.passport:', req.session?.passport || 'none');
 
       // Check for authenticated user - support both session and Replit OAuth
       let userId = req.session?.userId; // Express session (Google OAuth)
@@ -361,6 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[API] req.user exists:', !!req.user);
       console.log('[API] req.user?.claims?.sub:', req.user?.claims?.sub || 'none');
       console.log('[API] Request cookies:', req.headers.cookie ? 'present' : 'none');
+      console.log('[API] session.passport:', req.session?.passport || 'none');
 
       let userId: string | undefined;
 
