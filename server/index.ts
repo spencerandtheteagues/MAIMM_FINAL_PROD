@@ -81,21 +81,47 @@ app.use('/attached_assets', express.static('attached_assets'));
 
 // Session and Passport middleware - MUST be mounted BEFORE routes
 const PgStore = connectPg(session);
+
+// Sanity check early
+if (!process.env.DATABASE_URL) {
+  console.error('[BOOT] Missing DATABASE_URL — session store cannot connect.');
+}
+
+const store = new PgStore({
+  // Prefer conObject so we can force TLS; Render usually requires it
+  conObject: {
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },   // ← critical on Render
+  },
+  tableName: 'session',                   // keep lowercase; default for pg-simple
+  schemaName: 'public',
+  createTableIfMissing: true,
+});
+
+store.on('error', (err: any) => {
+  console.error('[SESSION STORE ERROR]', {
+    message: err?.message,
+    code: err?.code,
+    detail: err?.detail,
+    hint: err?.hint,
+    schema: err?.schema,
+    table: err?.table,
+    where: err?.where,
+    stack: err?.stack,
+  });
+});
+
 app.use(session({
   name: 'mam.sid',
-  secret: process.env.SESSION_SECRET || "myaimediamgr-secret-key-change-in-production",
-  store: new PgStore({
-    conString: process.env.DATABASE_URL!,
-    tableName: 'session',
-    createTableIfMissing: true,
-  }),
+  secret: process.env.SESSION_SECRET!,    // must be set in Render env
+  store,
   resave: false,
   saveUninitialized: false,
   proxy: true,
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax',                      // works for top-level OAuth redirects
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
@@ -104,6 +130,18 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 console.log('[Server] Session and Passport middleware mounted in index.ts');
+
+// Session health check endpoint for debugging
+app.get('/__session-health', (req, res) => {
+  req.session.__ts = Date.now();
+  req.session.save((err) => {
+    if (err) {
+      console.error('[SESSION HEALTH] save failed', err);
+      return res.status(500).json({ ok: false, err: String(err) });
+    }
+    res.json({ ok: true });
+  });
+});
 
 // Set up Passport serialize/deserialize - MUST be done before routes
 passport.serializeUser((user: any, done) => {
