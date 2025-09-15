@@ -91,11 +91,12 @@ const store = new PgStore({
   // Prefer conObject so we can force TLS; Render usually requires it
   conObject: {
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },   // ← critical on Render
+    ssl: { rejectUnauthorized: false }, // Render PG often requires this
   },
-  tableName: 'session',                   // keep lowercase; default for pg-simple
   schemaName: 'public',
-  createTableIfMissing: true,
+  tableName: 'session',
+  createTableIfMissing: false,  // <- disable auto DDL
+  pruneSessionInterval: false,  // <- disable auto pruner (it touches DDL paths)
 });
 
 store.on('error', (err: any) => {

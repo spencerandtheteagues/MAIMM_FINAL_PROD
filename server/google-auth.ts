@@ -542,329 +542,35 @@ router.get("/google", async (req: Request, res: Response, next: Function) => {
 });
 
 // Google OAuth callback handler with comprehensive error logging
-router.get("/google/callback", 
-  (req: Request, res: Response, next: Function) => {
-    console.log('[OAuth] Callback received with query params:', Object.keys(req.query));
-    console.log('[OAuth] Session exists:', !!req.session);
-    console.log('[OAuth] Session ID:', req.session?.id);
-    
-    logMobileDiagnostics(req, 'oauth-callback');
-    
-    // Verify CSRF state parameter
-    const receivedState = req.query.state;
-    const expectedState = req.session.oauthState;
-    const stateMatches = receivedState === expectedState;
-    
-    console.log('[OAuth] CSRF state check:', { 
-      receivedState: receivedState ? 'present' : 'missing',
-      expectedState: expectedState ? 'present' : 'missing',
-      matches: stateMatches 
-    });
-    
-    const debugInfo = {
-      userAgent: req.get('User-Agent'),
-      origin: req.get('Origin'),
-      referer: req.get('Referer'),
-      host: req.get('Host'),
-      query: req.query,
-      timestamp: new Date().toISOString(),
-      isMobile: /Mobile|Android|iPhone|iPad|BlackBerry|Opera Mini|IEMobile/.test(req.get('User-Agent') || ''),
-      hasCode: !!req.query.code,
-      hasError: !!req.query.error,
-      errorDescription: req.query.error_description,
-      receivedState,
-      expectedState,
-      stateMatches,
-    };
-    
-    safeDebugLog('[OAuth Debug] Google callback received:', debugInfo);
-    
-    // Log CSRF state mismatch explicitly
-    if (!stateMatches && process.env.NODE_ENV === 'production') {
-      console.error('[OAuth Error] CSRF state parameter mismatch detected');
-      safeDebugLog('[OAuth Error] CSRF state parameter mismatch detected:', {
-        receivedState,
-        expectedState,
-        userAgent: req.get('User-Agent'),
-        origin: req.get('Origin'),
-      });
-      // In production, only fail on state mismatch if both states exist
-      // Sometimes state gets lost in mobile browsers or due to cookie issues
-      if (receivedState && expectedState) {
-        return res.redirect('/auth?error=csrf_state_mismatch');
-      }
-      console.warn('[OAuth Warning] State parameter missing, continuing authentication');
-    }
-    
-    // Clean up state from session
-    delete req.session.oauthState;
-    
-    if (req.query.error) {
-      console.error('[OAuth Error] Google OAuth error in callback:', req.query.error);
-      safeDebugLog('[OAuth Error] Google OAuth error in callback:', {
-        ...debugInfo,
-        error: req.query.error,
-        errorDescription: req.query.error_description,
-        errorUri: req.query.error_uri,
-      });
-      return res.redirect(`/auth?error=google_oauth_error&details=${encodeURIComponent(req.query.error as string)}`);
-    }
-    
-    console.log('[OAuth] About to call passport.authenticate for callback');
+// Google OAuth callback handler with comprehensive error logging
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { failureRedirect: '/auth?error=google' },
+    (err, user) => {
+      if (err) return next(err);
+      if (!user) return res.redirect('/auth?error=no_user');
 
-    passport.authenticate('google', {
-      failureRedirect: '/auth?error=google_auth_failed',
-      failureMessage: true,
-      session: true, // Explicitly enable session support
-    })(req, res, (err: any) => {
-      console.log('[OAuth] Passport authenticate callback called, err:', !!err, 'req.user:', !!req.user);
+      req.login(user, (err) => {           // <--- puts user.id into session.passport
+        if (err) return next(err);
 
-      if (err) {
-        console.error('[OAuth Error] Passport authentication error:', err);
-        safeDebugLog('[OAuth Error] Passport authentication failed in callback:', {
-          ...debugInfo,
-          error: err instanceof Error ? {
-            name: err.name,
-            message: err.message,
-            stack: isDebugEnabled ? err.stack : undefined,
-          } : err,
-        });
-        return res.redirect(`/auth?error=passport_auth_failed&details=${encodeURIComponent(err.message || 'Unknown error')}`);
-      }
+        // Optional: legacy flag if other code checks it
+        req.session.userId = user.id;
 
-      console.log('[OAuth] Passport authentication successful, calling next()');
-      next();
-    });
-  },
-  async (req: Request, res: Response) => {
-    console.log('[OAuth] Authentication successful, entering final handler');
-    console.log('[OAuth] User exists:', !!req.user);
-    console.log('[OAuth] Session exists:', !!req.session);
-    
-    logMobileDiagnostics(req, 'callback-success');
-    
-    const debugInfo = {
-      userAgent: req.get('User-Agent'),
-      origin: req.get('Origin'),
-      referer: req.get('Referer'),
-      timestamp: new Date().toISOString(),
-      isMobile: /Mobile|Android|iPhone|iPad|BlackBerry|Opera Mini|IEMobile/.test(req.get('User-Agent') || ''),
-    };
-    
-    safeDebugLog('[OAuth Debug] Entering callback success handler:', debugInfo);
-    
-    // Authentication successful
-    const user = req.user as User;
-    if (!user) {
-      console.error('[OAuth Error] No user object after successful authentication');
-      safeDebugLog('[OAuth Error] No user object after successful authentication:', debugInfo);
-      return res.redirect("/auth?error=no_user_object");
-    }
-    
-    console.log('[OAuth] User authenticated:', {
-      userId: user.id,
-      email: maskEmail(user.email || ''),
-      needsTrialSelection: user.needsTrialSelection
-    });
-    
-    safeDebugLog('[OAuth Debug] User authenticated successfully:', {
-      ...debugInfo,
-      userId: user.id,
-      email: user.email,
-      needsTrialSelection: user.needsTrialSelection,
-    });
-    
-    try {
-      // Use Passport's req.login() instead of manual session creation
-      console.log('[OAuth] Calling req.login() for user:', user.id);
+        const returnTo = req.session.returnTo || '/';
+        delete req.session.returnTo;
 
-      await new Promise<void>((resolve, reject) => {
-        req.login(user, (err) => {
-          if (err) {
-            console.error('[OAuth Error] Passport login failed:', err.message);
-            safeDebugLog('[OAuth Error] Passport login failed:', {
-              ...debugInfo,
-              userId: user.id,
-              error: err instanceof Error ? {
-                name: err.name,
-                message: err.message,
-              } : err,
+        req.session.save((saveErr) => {    // <--- persist before redirect
+          if (saveErr) {
+            console.error('[SESSION SAVE ERROR @ GOOGLE CALLBACK]', saveErr);
+            return res.status(500).send({
+              message: 'Failed to persist auth session',
+              error: 'session_save_failed'
             });
-            reject(err);
-            return;
           }
-
-          // Also set manual session properties for compatibility with existing code
-          createUserSession(req, user);
-
-          console.log('[OAuth] Passport login successful, session userId:', req.session.userId);
-          console.log('[OAuth] Session ID after login:', req.sessionID);
-          console.log('[OAuth] req.user set:', !!req.user);
-          resolve();
+          return res.redirect(returnTo);
         });
       });
-
-      // Set cache control headers to prevent redirect caching
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      });
-
-      // Force session save and wait for completion
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error('[OAuth Error] Final session save failed:', err.message);
-            safeDebugLog('[OAuth Error] Session save failed:', {
-              ...debugInfo,
-              userId: user.id,
-              email: user.email,
-              error: err instanceof Error ? {
-                name: err.name,
-                message: err.message,
-                stack: isDebugEnabled ? err.stack : undefined,
-              } : err,
-              sessionData: {
-                userId: req.session.userId,
-                userEmail: req.session.user?.email,
-                sessionId: req.sessionID,
-              },
-            });
-            reject(err);
-            return;
-          }
-
-          console.log('[OAuth] Session saved successfully');
-          console.log('[OAuth] Session ID after save:', req.sessionID);
-          console.log('[OAuth] Session userId:', req.session.userId);
-          console.log('[OAuth] Session user email:', req.session.user?.email ? maskEmail(req.session.user.email) : 'none');
-
-          // Debug cookie setting
-          console.log('[OAuth] Response cookies being set:', res.getHeaders()['set-cookie']);
-          console.log('[OAuth] Session cookie name:', 'connect.sid');
-          console.log('[OAuth] Request host:', req.get('host'));
-          console.log('[OAuth] Request protocol:', req.protocol);
-
-          safeDebugLog('[OAuth Debug] Session saved successfully:', {
-            ...debugInfo,
-            userId: user.id,
-            sessionUserId: req.session.userId,
-            sessionId: req.sessionID,
-          });
-          resolve();
-        });
-      });
-      
-      // Check if user needs trial selection (new users only, not admins)
-      if (user.needsTrialSelection && !user.isAdmin && user.role !== 'admin') {
-        console.log('[OAuth] New user needs trial selection, redirecting to /trial-selection');
-        safeDebugLog('[OAuth Debug] User needs trial selection, redirecting to trial-selection');
-        return res.redirect("/trial-selection");
-      }
-
-      // Admin users or users with completed trial selection go to dashboard
-      if (user.isAdmin || user.role === 'admin') {
-        console.log('[OAuth] Admin user authenticated, redirecting to dashboard');
-      } else {
-        console.log('[OAuth] Existing user authenticated, redirecting to dashboard');
-      }
-
-      // Redirect to dashboard for authenticated users
-      let returnTo = "/dashboard"; // Default to dashboard for authenticated users
-
-      // Check both returnTo and returnUrl for compatibility
-      const sessionReturnUrl = req.session.returnTo || req.session.returnUrl;
-
-      if (sessionReturnUrl && isValidReturnUrl(sessionReturnUrl)) {
-        returnTo = sessionReturnUrl;
-        console.log('[OAuth] Using session return URL:', returnTo);
-      } else {
-        console.log('[OAuth] Using default redirect to dashboard');
-      }
-      
-      // Clean up return URLs from session and save again
-      delete req.session.returnTo;
-      delete req.session.returnUrl;
-
-      // Save session again after cleanup to ensure all changes are persisted
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error('[OAuth Error] Final session save failed:', err.message);
-            reject(err);
-          } else {
-            console.log('[OAuth] Final session save successful');
-            resolve();
-          }
-        });
-      });
-
-      console.log('[OAuth] Final redirect to:', returnTo);
-      safeDebugLog('[OAuth Debug] Final redirect to:', { returnTo });
-
-      logOAuthEvent('oauth-redirect', {
-        sessionId: req.sessionID,
-        userId: user.id,
-        redirectTo: returnTo,
-        isAdmin: user.isAdmin,
-        needsTrialSelection: user.needsTrialSelection
-      });
-
-      // Debug cookie information
-      console.log('[OAuth] Current cookies:', req.headers.cookie || 'none');
-      console.log('[OAuth] Response headers before send:', res.getHeaders());
-
-      // Enhanced debugging for session cookie issues
-      console.log('[OAuth] === CRITICAL SESSION DEBUG ===');
-      console.log('[OAuth] Session ID:', req.sessionID);
-      console.log('[OAuth] Session userId set:', req.session.userId);
-      console.log('[OAuth] Session user email:', req.session.user?.email || 'none');
-      console.log('[OAuth] Request host:', req.get('host'));
-      console.log('[OAuth] Request protocol:', req.protocol);
-      console.log('[OAuth] Set-Cookie headers:', res.getHeaders()['set-cookie']);
-      console.log('[OAuth] Trust proxy setting:', req.app.get('trust proxy'));
-      console.log('[OAuth] X-Forwarded-Proto:', req.get('X-Forwarded-Proto'));
-      console.log('[OAuth] === END CRITICAL DEBUG ===');
-
-      // Use standard redirect which properly handles cookies
-      console.log('[OAuth] Final response headers before redirect:', res.getHeaders());
-      res.redirect(returnTo);
-    } catch (error) {
-      console.error('[OAuth Error] Exception in callback success handler:', error instanceof Error ? error.message : error);
-      safeDebugLog('[OAuth Error] Exception in callback success handler:', {
-        ...debugInfo,
-        userId: user?.id,
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: isDebugEnabled ? error.stack : undefined,
-        } : error,
-      });
-      
-      // Try to fallback to creating a basic session without regeneration
-      try {
-        createUserSession(req, user);
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-        
-        // If session saved successfully in fallback, redirect to dashboard
-        console.log('[OAuth] Fallback session save successful');
-        const redirectTo = user.needsTrialSelection ? "/trial-selection" : "/dashboard";
-        res.redirect(redirectTo);
-      } catch (fallbackError) {
-        console.error('[OAuth Error] Fallback session save also failed:', fallbackError);
-        res.redirect("/auth?error=session_failed&details=" + encodeURIComponent('Session creation failed. Please try again or use email/password login.'));
-      }
     }
-  }
-);
+  )(req, res, next);
+});
 
 export default router;
