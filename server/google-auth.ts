@@ -289,13 +289,22 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           email: user.email,
           needsTrialSelection: user.needsTrialSelection,
         });
+
+        // For existing users, clear needsTrialSelection if they have a tier/subscription
+        const shouldClearTrialSelection = user.tier !== 'free' || user.isPaid || user.isAdmin || user.role === 'admin';
+
         // Update existing user's Google info
         await storage.updateUser(user.id, {
           googleAvatar: profile.photos?.[0]?.value,
           profileImageUrl: user.profileImageUrl || profile.photos?.[0]?.value,
           emailVerified: true,
           lastLoginAt: new Date(),
+          // Clear trial selection requirement for users who already have subscriptions or are admins
+          ...(shouldClearTrialSelection && { needsTrialSelection: false }),
         });
+
+        // Refresh user data after update
+        user = await storage.getUser(user.id);
       }
       
       safeDebugLog('[OAuth Debug] Strategy callback successful, returning user:', {
@@ -651,11 +660,18 @@ router.get("/google/callback",
         });
       });
       
-      // Check if user needs trial selection (new users)
-      if (user.needsTrialSelection) {
+      // Check if user needs trial selection (new users only, not admins)
+      if (user.needsTrialSelection && !user.isAdmin && user.role !== 'admin') {
         console.log('[OAuth] New user needs trial selection, redirecting to /trial-selection');
         safeDebugLog('[OAuth Debug] User needs trial selection, redirecting to trial-selection');
         return res.redirect("/trial-selection");
+      }
+
+      // Admin users or users with completed trial selection go to dashboard
+      if (user.isAdmin || user.role === 'admin') {
+        console.log('[OAuth] Admin user authenticated, redirecting to dashboard');
+      } else {
+        console.log('[OAuth] Existing user authenticated, redirecting to dashboard');
       }
       
       // Redirect to dashboard for authenticated users
