@@ -109,6 +109,22 @@ async function generateUniqueReferralCode(): Promise<string> {
 
 const router = Router();
 
+// Store recent OAuth events for debugging
+const recentOAuthEvents: any[] = [];
+function logOAuthEvent(event: string, data: any) {
+  const eventLog = {
+    timestamp: new Date().toISOString(),
+    event,
+    data: { ...data }
+  };
+  recentOAuthEvents.push(eventLog);
+  // Keep only last 20 events
+  if (recentOAuthEvents.length > 20) {
+    recentOAuthEvents.shift();
+  }
+  console.log(`[OAuth Event] ${event}:`, JSON.stringify(data, null, 2));
+}
+
 // Debug endpoint to check OAuth configuration
 router.get("/debug", (req: Request, res: Response) => {
   const debugInfo = {
@@ -139,6 +155,8 @@ router.get("/debug", (req: Request, res: Response) => {
       origin: req.get('Origin'),
       protocol: req.protocol,
       secure: req.secure,
+      appUrl: process.env.APP_URL,
+      callbackUrl: getCallbackUrl(req),
     },
     headers: {
       cookie: !!req.headers.cookie,
@@ -146,8 +164,9 @@ router.get("/debug", (req: Request, res: Response) => {
       xForwardedProto: req.get('X-Forwarded-Proto'),
       xForwardedHost: req.get('X-Forwarded-Host'),
     },
+    recentOAuthEvents: recentOAuthEvents.slice(-10), // Last 10 events
   };
-  
+
   console.log('[OAuth Debug Endpoint] Request:', debugInfo);
   res.json(debugInfo);
 });
@@ -400,16 +419,24 @@ function isValidReturnUrl(url: string): boolean {
 // Initiate Google OAuth flow
 router.get("/google", async (req: Request, res: Response, next: Function) => {
   logMobileDiagnostics(req, 'oauth-initiate');
-  
+
   // Generate and store state parameter for CSRF protection using crypto for better security
   const state = randomBytes(32).toString('hex');
   req.session.oauthState = state;
-  
+
   console.log('[OAuth] Generated state:', state);
   console.log('[OAuth] Session ID before save:', req.sessionID);
-  
+
   // Log effective callback URL being used
   const effectiveCallbackUrl = getCallbackUrl(req);
+
+  logOAuthEvent('oauth-initiate', {
+    sessionID: req.sessionID,
+    state: state,
+    effectiveCallbackUrl: effectiveCallbackUrl,
+    userAgent: req.get('User-Agent'),
+    host: req.get('Host')
+  });
   
   const debugInfo = {
     userAgent: req.get('User-Agent'),
