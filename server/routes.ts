@@ -79,6 +79,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Health routes (no auth required)
   app.use("/", healthRoutes);
+
+  // CRITICAL DEBUG: Add a test route to verify API routing is working
+  app.get("/api/debug-routing", (_req, res) => {
+    res.json({
+      message: "API routing is working correctly",
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      dirname: __dirname,
+      cwd: process.cwd(),
+      serverRunningFrom: "routes.ts registerRoutes function"
+    });
+  });
   
   // Metrics endpoint (no auth for monitoring)
   app.get("/metrics", createMetricsRoute());
