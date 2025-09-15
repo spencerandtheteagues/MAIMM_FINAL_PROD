@@ -10,6 +10,7 @@ import { generateXAuthUrl, handleXOAuthCallback, postToXWithOAuth } from "./x-oa
 import { getSession } from "./replitAuth";
 import authRoutes, { requireAuth, requireAdmin } from "./auth";
 import googleAuthRoutes from "./google-auth";
+import passport from "passport";
 import stripeRoutes from "./stripeRoutes";
 import userRoutes from "./userRoutes";
 import adminRoutes from "./adminRoutes";
@@ -97,7 +98,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Session middleware (always needed)
   app.use(getSession());
-  
+
+  // Passport middleware - MUST come after session middleware
+  app.use(passport.initialize());
+  app.use(passport.session());
+  console.log('[Server] Passport middleware mounted');
+
   // Use app auth routes (Replit auth disabled for Render deployment)
   app.use("/api/auth", authRoutes);
   
@@ -309,9 +315,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      // Check for authenticated user - no fallback to demo
-      const userId = req.user?.claims?.sub;
+      // Enhanced debugging for authentication methods
+      console.log('[API] /api/auth/user called');
+      console.log('[API] Session exists:', !!req.session);
+      console.log('[API] Session ID:', req.session?.id);
+      console.log('[API] Session userId:', req.session?.userId);
+      console.log('[API] Session user:', req.session?.user ? 'present' : 'none');
+      console.log('[API] req.user exists:', !!req.user);
+      console.log('[API] req.user?.claims?.sub:', req.user?.claims?.sub || 'none');
+      console.log('[API] Request cookies:', req.headers.cookie ? 'present' : 'none');
+
+      // Check for authenticated user - support both session and Replit OAuth
+      let userId = req.session?.userId; // Express session (Google OAuth)
+
+      if (!userId && req.user?.claims?.sub) {
+        userId = req.user.claims.sub; // Replit OAuth
+      }
+
+      console.log('[API] Final userId determined:', userId || 'none');
+
       if (!userId) {
+        console.log('[API] No userId found, returning 401');
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(userId);
@@ -328,18 +352,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user - works with both auth systems
   app.get("/api/user", async (req: any, res) => {
     try {
+      // Enhanced debugging for authentication methods
+      console.log('[API] /api/user called');
+      console.log('[API] Session exists:', !!req.session);
+      console.log('[API] Session ID:', req.session?.id);
+      console.log('[API] Session userId:', req.session?.userId);
+      console.log('[API] Session user:', req.session?.user ? 'present' : 'none');
+      console.log('[API] req.user exists:', !!req.user);
+      console.log('[API] req.user?.claims?.sub:', req.user?.claims?.sub || 'none');
+      console.log('[API] Request cookies:', req.headers.cookie ? 'present' : 'none');
+
       let userId: string | undefined;
-      
+
       // Check for session-based auth (app auth)
       if (req.session?.userId) {
         userId = req.session.userId;
+        console.log('[API] Using session userId:', userId);
       }
       // Check for Replit auth
       else if (req.user?.claims?.sub) {
         userId = req.user.claims.sub;
+        console.log('[API] Using Replit userId:', userId);
       }
       // No fallback to demo user - require authentication
       else {
+        console.log('[API] No userId found in either session or Replit auth, returning 401');
         return res.status(401).json({ message: "Not authenticated" });
       }
       

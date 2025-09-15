@@ -410,6 +410,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   }));
 
   passport.serializeUser((user: any, done) => {
+    console.log('[passport] serialize user:', user?.id);
     safeDebugLog('[OAuth Debug] Serializing user:', {
       userId: user?.id,
       email: user?.email,
@@ -418,9 +419,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   });
 
   passport.deserializeUser(async (id: string, done) => {
+    console.log('[passport] deserialize user ID:', id);
     safeDebugLog('[OAuth Debug] Deserializing user ID:', { userId: id });
     try {
       const user = await storage.getUser(id);
+      console.log('[passport] user found:', !!user);
       safeDebugLog('[OAuth Debug] User deserialized:', {
         userId: user?.id,
         email: user?.email,
@@ -699,24 +702,47 @@ router.get("/google/callback",
     });
     
     try {
-      createUserSession(req, user);
-      
-      console.log('[OAuth] Session created with userId:', req.session.userId);
-      console.log('[OAuth] Session ID before save:', req.sessionID);
-      safeDebugLog('[OAuth Debug] Session created, attempting to save...');
-      
+      // Use Passport's req.login() instead of manual session creation
+      console.log('[OAuth] Calling req.login() for user:', user.id);
+
+      await new Promise<void>((resolve, reject) => {
+        req.login(user, (err) => {
+          if (err) {
+            console.error('[OAuth Error] Passport login failed:', err.message);
+            safeDebugLog('[OAuth Error] Passport login failed:', {
+              ...debugInfo,
+              userId: user.id,
+              error: err instanceof Error ? {
+                name: err.name,
+                message: err.message,
+              } : err,
+            });
+            reject(err);
+            return;
+          }
+
+          // Also set manual session properties for compatibility with existing code
+          createUserSession(req, user);
+
+          console.log('[OAuth] Passport login successful, session userId:', req.session.userId);
+          console.log('[OAuth] Session ID after login:', req.sessionID);
+          console.log('[OAuth] req.user set:', !!req.user);
+          resolve();
+        });
+      });
+
       // Set cache control headers to prevent redirect caching
       res.set({
         'Cache-Control': 'no-store, no-cache, must-revalidate, private',
         'Pragma': 'no-cache',
         'Expires': '0',
       });
-      
+
       // Force session save and wait for completion
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
           if (err) {
-            console.error('[OAuth Error] Session save failed:', err.message);
+            console.error('[OAuth Error] Final session save failed:', err.message);
             safeDebugLog('[OAuth Error] Session save failed:', {
               ...debugInfo,
               userId: user.id,
@@ -815,6 +841,18 @@ router.get("/google/callback",
       // Debug cookie information
       console.log('[OAuth] Current cookies:', req.headers.cookie || 'none');
       console.log('[OAuth] Response headers before send:', res.getHeaders());
+
+      // Enhanced debugging for session cookie issues
+      console.log('[OAuth] === CRITICAL SESSION DEBUG ===');
+      console.log('[OAuth] Session ID:', req.sessionID);
+      console.log('[OAuth] Session userId set:', req.session.userId);
+      console.log('[OAuth] Session user email:', req.session.user?.email || 'none');
+      console.log('[OAuth] Request host:', req.get('host'));
+      console.log('[OAuth] Request protocol:', req.protocol);
+      console.log('[OAuth] Set-Cookie headers:', res.getHeaders()['set-cookie']);
+      console.log('[OAuth] Trust proxy setting:', req.app.get('trust proxy'));
+      console.log('[OAuth] X-Forwarded-Proto:', req.get('X-Forwarded-Proto'));
+      console.log('[OAuth] === END CRITICAL DEBUG ===');
 
       // Use standard redirect which properly handles cookies
       console.log('[OAuth] Final response headers before redirect:', res.getHeaders());
