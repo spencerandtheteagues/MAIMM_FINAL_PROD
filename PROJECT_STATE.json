@@ -1,0 +1,20 @@
+{
+  "current": "F2: Content library auto-save implemented, testing",
+  "done": ["F0: Test harness setup complete - Playwright installed and working", "F1: Approval queue routes implemented", "F2: Content library auto-save for images/videos (not text)"],
+  "issues": [],
+  "timestamp": "2025-01-09T23:07:00Z",
+  "playbook_tasks": {
+    "F0": "Complete - Test harness working with Playwright",
+    "F1": "Complete - Approval queue routes working",
+    "F2": "Complete - Content library auto-save (images/videos only, text excluded)",
+    "F3": "Pending - Campaign builder (14 posts, 2/day × 7 days)",
+    "F4": "Pending - Scheduler + mock publisher",
+    "F5": "Pending - Credit gating & refunds",
+    "F6": "Pending - Payments (Stripe) → ledger",
+    "F7": "Pending - Security hardening",
+    "F8": "Pending - Observability",
+    "F9": "Pending - Social platforms preparation",
+    "F10": "Pending - CI gate + deployment verification"
+  },
+  "env": ["DATABASE_URL", "SESSION_SECRET", "STRIPE_SECRET_KEY", "VITE_STRIPE_PUBLIC_KEY", "GOOGLE_SERVICE_ACCOUNT_JSON", "GOOGLE_CLOUD_PROJECT", "VERTEX_LOCATION", "STRIPE_WEBHOOK_SECRET"]
+}

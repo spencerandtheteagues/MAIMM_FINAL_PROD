@@ -1,0 +1,48 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install && npm run build"
+  },
+  "deploy": {
+    "startCommand": "npm run start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 30
+  },
+  "envVars": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "default": "production"
+    },
+    "PORT": {
+      "description": "Server port",
+      "default": "5000"
+    },
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection string",
+      "required": true
+    },
+    "SESSION_SECRET": {
+      "description": "Session secret for authentication",
+      "required": true
+    },
+    "STRIPE_SECRET_KEY": {
+      "description": "Stripe secret key for payments",
+      "required": true
+    },
+    "VITE_STRIPE_PUBLIC_KEY": {
+      "description": "Stripe public key for frontend",
+      "required": true
+    },
+    "GCLOUD_PROJECT_ID": {
+      "description": "Google Cloud Project ID for AI services",
+      "required": false
+    },
+    "GEMINI_API_KEY": {
+      "description": "Gemini API key for AI features",
+      "required": false
+    }
+  }
+}

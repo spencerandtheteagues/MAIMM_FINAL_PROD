@@ -1,0 +1,23 @@
+[
+  {
+    "email": "test-enterprise@myaimediamgr.com",
+    "password": "Test123!@#",
+    "username": "test-enterprise",
+    "businessName": "Test Enterprise Co",
+    "tier": "enterprise"
+  },
+  {
+    "email": "test-trial@myaimediamgr.com",
+    "password": "Test123!@#",
+    "username": "test-trial",
+    "businessName": "Test Trial Business",
+    "tier": "trial"
+  },
+  {
+    "email": "test-pro@myaimediamgr.com",
+    "password": "Test123!@#",
+    "username": "test-pro",
+    "businessName": "Test Pro Agency",
+    "tier": "professional"
+  }
+]

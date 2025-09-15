@@ -1,0 +1,126 @@
+{
+  "timestamp": "2025-09-10T05:40:10.715Z",
+  "totalIssues": 19,
+  "bySeverity": {
+    "CRITICAL": 1,
+    "HIGH": 9,
+    "MEDIUM": 9
+  },
+  "vulnerabilities": [
+    {
+      "severity": "CRITICAL",
+      "file": ".gitignore",
+      "issue": ".env not in gitignore",
+      "fix": "Add .env to .gitignore"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/adminRoutes.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/approvalRoutes.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/auth.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/billing/stripe.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/campaignRoutes.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/libraryRoutes.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/routes.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "server/types/session.d.ts",
+      "issue": "Session cookie not set to httpOnly",
+      "fix": "Set httpOnly: true"
+    },
+    {
+      "severity": "HIGH",
+      "file": "client/src/components/ui/chart.tsx",
+      "issue": "Use of dangerouslySetInnerHTML",
+      "fix": "Sanitize HTML content or use text content"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/adminRoutes.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/approvalRoutes.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/auth.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/billing/stripe.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/campaignRoutes.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/libraryRoutes.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/routes.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/types/session.d.ts",
+      "issue": "Session cookie not set to secure in production",
+      "fix": "Set secure: true for production"
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "server/routes.ts",
+      "issue": "Missing HTTPS enforcement headers",
+      "fix": "Add helmet middleware with HSTS"
+    }
+  ],
+  "fixes": []
+}
