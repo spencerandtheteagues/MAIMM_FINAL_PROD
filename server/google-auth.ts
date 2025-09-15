@@ -735,12 +735,18 @@ router.get("/google/callback",
             reject(err);
             return;
           }
-          
+
           console.log('[OAuth] Session saved successfully');
           console.log('[OAuth] Session ID after save:', req.sessionID);
           console.log('[OAuth] Session userId:', req.session.userId);
           console.log('[OAuth] Session user email:', req.session.user?.email ? maskEmail(req.session.user.email) : 'none');
-          
+
+          // Debug cookie setting
+          console.log('[OAuth] Response cookies being set:', res.getHeaders()['set-cookie']);
+          console.log('[OAuth] Session cookie name:', 'connect.sid');
+          console.log('[OAuth] Request host:', req.get('host'));
+          console.log('[OAuth] Request protocol:', req.protocol);
+
           safeDebugLog('[OAuth Debug] Session saved successfully:', {
             ...debugInfo,
             userId: user.id,
