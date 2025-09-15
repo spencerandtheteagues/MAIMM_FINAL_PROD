@@ -269,6 +269,11 @@ function getCallbackUrl(req: Request): string {
     return process.env.OAUTH_CALLBACK_URL;
   }
 
+  // Prefer APP_URL in production when set
+  if (process.env.APP_URL && process.env.NODE_ENV === 'production') {
+    return `${process.env.APP_URL}/api/auth/google/callback`;
+  }
+
   // In production, detect the actual domain being used
   if (process.env.NODE_ENV === 'production') {
     const host = req.get('host') || req.get('x-forwarded-host');
@@ -278,19 +283,8 @@ function getCallbackUrl(req: Request): string {
       return `https://${host}/api/auth/google/callback`;
     }
 
-    // Replit deployment
-    if (host && (host.includes('.replit.dev') || host.includes('.repl.co'))) {
-      return `https://${host}/api/auth/google/callback`;
-    }
-
     // Custom domain fallback
     return 'https://myaimediamgr.com/api/auth/google/callback';
-  }
-
-  // In development, check for Replit domains first
-  if (process.env.REPLIT_DOMAINS) {
-    const firstDomain = process.env.REPLIT_DOMAINS.split(',')[0];
-    return `https://${firstDomain}/api/auth/google/callback`;
   }
 
   // Local development
@@ -302,7 +296,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/api/auth/google/callback', // Use relative URL to work with any domain
+    callbackURL: '/api/auth/google/callback', // Keep relative; we'll override per-request
     scope: ['openid', 'email', 'profile'],
     state: true, // Enable state parameter for CSRF protection
     passReqToCallback: true,
@@ -562,10 +556,12 @@ router.get("/google", async (req: Request, res: Response, next: Function) => {
       });
     });
     
-    safeDebugLog('[OAuth Debug] Starting passport.authenticate for Google', { state });
+    const callbackURL = getCallbackUrl(req);
+    safeDebugLog('[OAuth Debug] Starting passport.authenticate for Google', { state, callbackURL });
     passport.authenticate('google', {
       scope: ['openid', 'email', 'profile'],
-      state: state // Include state parameter for CSRF protection
+      state: state, // Include state parameter for CSRF protection
+      callbackURL: callbackURL // Use the computed callback URL
     })(req, res, next);
   } catch (error) {
     console.error('[OAuth] Session save error:', error);
