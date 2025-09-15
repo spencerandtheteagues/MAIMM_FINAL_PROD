@@ -12,3 +12,14 @@ vite.config.ts.*
 .env
 .env.local
 .env.*.local
+
+# Local/dev artifacts
+.local/
+.replit/
+
+# Secrets and attached assets
+attached_assets/
+*.pem
+*.key
+**/*service-account*.json
+**/*private*.key
