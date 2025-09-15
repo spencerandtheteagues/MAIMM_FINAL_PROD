@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { enforceTrialGating } from "./middleware/entitlements";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPostSchema, insertAiSuggestionSchema, insertCampaignSchema } from "@shared/schema";
@@ -86,6 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Session middleware (always needed)
   app.use(getSession());
+  app.use(enforceTrialGating());
   
   // Conditionally setup auth based on environment
   const useReplitAuth = process.env.ENABLE_REPLIT_AUTH === 'true';
@@ -270,6 +272,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wire up Stripe billing routes
   app.use("/api/billing", stripeRoutes);
   app.use("/api/stripe", stripeRoutes);
+
+  try {
+    const trialRoutes = require("./trialRoutes").default;
+    app.use("/api/trial", trialRoutes);
+  } catch {}
+
+  try {
+    const platformRoutes = require("./platformRoutes").default;
+    app.use("/api/platform", platformRoutes);
+  } catch {}
+  try {
+    const legalRoutes = require("./legalRoutes").default;
+    app.use("/", legalRoutes);
+  } catch {}
   
   // Also expose subscription and credit routes
   app.use("/api/subscription", stripeRoutes);
