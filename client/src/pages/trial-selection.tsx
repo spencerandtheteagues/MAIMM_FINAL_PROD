@@ -15,13 +15,14 @@ export default function TrialSelection() {
   // Check if user has already selected a trial (optional - may be unauthenticated)
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
-    // Don't throw errors if user is not authenticated
-    throwOnError: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   // If user is authenticated and has already selected a trial, redirect to app
-  if (user && !user.needsTrialSelection && !isLoading) {
+  if (user && !(user as any).needsTrialSelection && !isLoading) {
     setLocation("/");
     return null;
   }
@@ -31,10 +32,7 @@ export default function TrialSelection() {
 
   const selectTrialMutation = useMutation({
     mutationFn: async (variant: string) => {
-      return apiRequest("/api/trial/select", {
-        method: "POST",
-        body: JSON.stringify({ variant }),
-      });
+      return apiRequest("POST", "/api/trial/select", { variant });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
