@@ -124,10 +124,6 @@ export default function Campaigns() {
 
   const createCampaignMutation = useMutation({
     mutationFn: async (data: CreateCampaignForm) => {
-      // Check if user is paid
-      if (!user?.isPaid) {
-        throw new Error("Campaign creation requires a paid account");
-      }
 
       setIsGenerating(true);
       setGenerationProgress(0);
@@ -198,8 +194,9 @@ export default function Campaigns() {
         }, 1000); // Poll every second
       });
     },
-    onSuccess: ({ campaign, posts }) => {
-      setCampaignPosts(posts.map((post: any, index: number) => ({
+    onSuccess: (data: any) => {
+      const { campaign, posts } = data || {};
+      setCampaignPosts((posts || []).map((post: any, index: number) => ({
         id: post.id,
         day: Math.floor(index / 2) + 1,
         slot: (index % 2) + 1,
@@ -209,7 +206,7 @@ export default function Campaigns() {
         status: "pending",
         platforms: Array.isArray(post.platforms) ? post.platforms : [post.platform],
       })));
-      setSelectedCampaign(campaign);
+      setSelectedCampaign(campaign || null);
       setIsGenerating(false);
       setGenerationProgress(0);
       setGenerationStatus("");
@@ -322,21 +319,13 @@ export default function Campaigns() {
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          disabled={!user?.isPaid}
+          disabled={false}
         >
           <PlusCircle className="w-4 h-4 mr-2" />
           New Campaign
         </Button>
       </div>
 
-      {!user?.isPaid && (
-        <Alert>
-          <CreditCard className="w-4 h-4" />
-          <AlertDescription>
-            Campaign creation requires a paid account. Upgrade to create automated campaigns.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Tabs defaultValue="active" className="space-y-6">
         <TabsList>
@@ -907,7 +896,7 @@ export default function Campaigns() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createCampaignMutation.isPending || isGenerating || !user?.isPaid}
+                  disabled={createCampaignMutation.isPending || isGenerating}
                 >
                   {(createCampaignMutation.isPending || isGenerating) ? (
                     <>
