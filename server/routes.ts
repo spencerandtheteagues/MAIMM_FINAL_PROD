@@ -38,8 +38,8 @@ function getUserId(req: any): string | null {
     return req.user.sub;
   }
   // Check legacy session-based auth (for backward compatibility)
-  if (req.session?.userId) {
-    return req.session.userId;
+  if ((req.session as any)?.userId) {
+    return (req.session as any).userId;
   }
   // Check if user object has id directly (from session auth middleware)
   if (req.user?.id) {
@@ -178,10 +178,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     // Check for session-based authentication as fallback
-    else if (req.session?.userId) {
+    else if ((req.session as any)?.userId) {
       // Get the user from storage and set it on req.user
       try {
-        const user = await storage.getUser(req.session.userId);
+        const user = await storage.getUser((req.session as any).userId);
         if (user) {
           req.user = {
             id: user.id,
@@ -277,10 +277,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     // Check for session-based authentication as fallback
-    else if (req.session?.userId) {
+    else if ((req.session as any)?.userId) {
       // Get the user from storage and set it on req.user
       try {
-        const user = await storage.getUser(req.session.userId);
+        const user = await storage.getUser((req.session as any).userId);
         if (user) {
           req.user = {
             id: user.id,
@@ -419,8 +419,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId = req.user.sub;
       }
       // Check for session-based auth (app auth)
-      else if (req.session?.userId) {
-        userId = req.session.userId;
+      else if ((req.session as any)?.userId) {
+        userId = (req.session as any).userId;
       }
       // Check for Replit auth
       else if (req.user?.claims?.sub) {
@@ -829,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               campaignId: campaign.id,
               content: post.content,
               mediaUrls: post.imageUrl ? [post.imageUrl] : [],
-              platforms: [campaign.platform],
+              platform: campaign.platform,
               status: "pending",
               scheduledFor: post.scheduledFor,
               aiGenerated: true,
@@ -862,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/posts", async (req: any, res) => {
     try {
       // Get user ID from JWT, session, or auth
-      const userId = req.user?.sub || req.session?.userId || req.user?.claims?.sub;
+      const userId = req.user?.sub || (req.session as any)?.userId || req.user?.claims?.sub;
       
       // Require authentication for post creation
       if (!userId) {

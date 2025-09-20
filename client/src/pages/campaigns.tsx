@@ -399,8 +399,7 @@ export default function Campaigns() {
                       </div>
                       <Button 
                         onClick={() => approveCampaignMutation.mutate(campaign.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
+                        className="bg-green-600 hover:bg-green-700">
                         <Play className="w-4 h-4 mr-2" />
                         Approve & Start Campaign
                       </Button>
@@ -797,7 +796,7 @@ export default function Campaigns() {
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="auto" id="auto" />
                         <label htmlFor="auto" className="text-sm font-normal">
-                          Auto (posts at optimal times: 9 AM & 7 PM)
+                          Auto (posts at optimal times: 9 AM &amp; 7 PM)
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">
