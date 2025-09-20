@@ -51,11 +51,11 @@ function Router() {
   useEffect(() => {
     setGlobalRestrictionHandler((data: any) => {
       showRestriction(data);
-      if ((data?.needsTrialSelection || data?.restrictionType === "trial_expired") && location !== "/trial-selection") {
+      if ((data?.needsTrialSelection || data?.restrictionType === "trial_expired") && user && location !== "/trial-selection") {
         setLocation("/trial-selection");
       }
     });
-  }, [showRestriction, setLocation, location]);
+  }, [showRestriction, setLocation, location, user]);
 
   // Check authentication status
   const { data: user, error } = useCurrentUser();
