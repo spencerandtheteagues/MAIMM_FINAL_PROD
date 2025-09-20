@@ -46,10 +46,6 @@ export function applyTheme(theme: Theme): void {
   const primaryColor = rootComputedStyle.getPropertyValue('--primary').trim();
   console.log('[Theme] Applied theme, primary color:', primaryColor);
 
-  // Force all elements to recalculate styles by triggering reflow
-  document.body.style.display = 'none';
-  document.body.offsetHeight; // Trigger reflow
-  document.body.style.display = '';
 
   // Double-check the theme was applied
   setTimeout(() => {

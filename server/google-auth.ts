@@ -84,6 +84,13 @@ export function registerGoogleAuth(app: any) {
     const state = crypto.randomBytes(16).toString('hex');
     // We don't have sessions, so we'll pass state through a temporary cookie
     res.cookie('oauth_state', state, { maxAge: 300000, httpOnly: true, secure: process.env.NODE_ENV === 'production' });
+
+    const returnParam = (req.query.return as string) || (req.query.returnTo as string) || '';
+    const safeReturn = typeof returnParam === 'string' && returnParam.startsWith('/') ? returnParam : '';
+    if (safeReturn) {
+      res.cookie('oauth_return_to', safeReturn, { maxAge: 300000, httpOnly: true, secure: process.env.NODE_ENV === 'production' });
+    }
+
     const callbackURL = getCallbackUrl(req);
     passport.authenticate('google', {
       session: false,
@@ -122,28 +129,29 @@ export function registerGoogleAuth(app: any) {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           path: '/',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         // Smart redirect logic based on user role and status
         let redirectUrl = '/';
-
         if (user.role === 'admin' || user.isAdmin) {
-          // Admin users go directly to dashboard
           redirectUrl = '/';
         } else if (user.needsTrialSelection) {
-          // New users need to select a trial
           redirectUrl = '/trial-selection';
         } else if (!user.emailVerified) {
-          // Users with unverified email
           redirectUrl = `/verify-email?email=${encodeURIComponent(user.email)}`;
         } else {
-          // Existing verified users go to dashboard
           redirectUrl = '/';
         }
 
-        const returnTo = (req.query.returnTo as string) || redirectUrl;
-        return res.redirect(returnTo);
+        const qpReturn = (req.query.return as string) || (req.query.returnTo as string) || '';
+        const cookieReturn = req.cookies.oauth_return_to as string | undefined;
+        const candidate = qpReturn || cookieReturn || redirectUrl;
+        const finalReturn = typeof candidate === 'string' && candidate.startsWith('/') ? candidate : redirectUrl;
+
+        res.clearCookie('oauth_return_to');
+
+        return res.redirect(finalReturn);
       }
     )(req, res, next);
   });

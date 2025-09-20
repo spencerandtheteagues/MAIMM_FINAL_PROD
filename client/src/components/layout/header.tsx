@@ -417,6 +417,23 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
               >
                 <div className="flex items-center gap-2">
                   <CalendarDays className="w-4 h-4 text-orange-500" />
+              <DropdownMenuItem
+                onClick={() => {
+                  setTheme('professional');
+                  toast({
+                    title: "Theme Changed",
+                    description: "Switched to Professional theme",
+                    duration: 2000,
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>Professional</span>
+                  {theme === 'professional' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                </div>
+              </DropdownMenuItem>
+
                   <span>Schedule Post</span>
                 </div>
               </DropdownMenuItem>
