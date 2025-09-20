@@ -1,7 +1,7 @@
 import { Switch, Route } from "wouter";
 import { queryClient, setGlobalRestrictionHandler } from "./lib/queryClient";
-import { getQueryFn } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -39,37 +39,30 @@ import TrialExpired from "./pages/trial-expired";
 import { NotificationPopup } from "./components/NotificationPopup";
 import { TrialCountdown } from "./components/TrialCountdown";
 import { useRestrictionHandler } from "./hooks/useRestrictionHandler";
-import { useLocation } from "wouter"
+import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 
 function Router() {
   // Initialize restriction handler
   const { restrictionState, showRestriction, hideRestriction } = useRestrictionHandler();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [, setLocation] = useLocation();
-  
-  // Set up global restriction handler
+  const [location, setLocation] = useLocation();
+
   useEffect(() => {
     setGlobalRestrictionHandler((data: any) => {
       showRestriction(data);
-      if (data?.needsTrialSelection || data?.restrictionType === "trial_expired") {
+      if ((data?.needsTrialSelection || data?.restrictionType === "trial_expired") && location !== "/trial-selection") {
         setLocation("/trial-selection");
       }
     });
-  }, [showRestriction, setLocation]);
+  }, [showRestriction, setLocation, location]);
 
   // Check authentication status
-  const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
+  const [loadStart] = useState(() => Date.now());
+  const { data: user, isLoading, error } = useCurrentUser();
 
   // Show loading state while checking authentication (with timeout)
-  if (isLoading) {
+  if (isLoading && Date.now() - loadStart < 1200) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, CreditCard, Sparkles, Zap, Building, Users, TrendingUp, BarChart, Crown, Star } from "lucide-react";
@@ -13,13 +14,7 @@ export default function TrialSelection() {
   const { toast } = useToast();
 
   // Check if user has already selected a trial (optional - may be unauthenticated)
-  const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: user, isLoading, error } = useCurrentUser();
 
   // If user is authenticated and has already selected a trial, redirect to app
   if (user && !(user as any).needsTrialSelection && !isLoading) {
