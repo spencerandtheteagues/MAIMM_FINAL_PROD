@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import { queryClient, setGlobalRestrictionHandler } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -38,35 +39,26 @@ import TrialExpired from "./pages/trial-expired";
 import { NotificationPopup } from "./components/NotificationPopup";
 import { TrialCountdown } from "./components/TrialCountdown";
 import { useRestrictionHandler } from "./hooks/useRestrictionHandler";
+import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 
 function Router() {
   // Initialize restriction handler
   const { restrictionState, showRestriction, hideRestriction } = useRestrictionHandler();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  
-  // Set up global restriction handler
-  useEffect(() => {
-    setGlobalRestrictionHandler(showRestriction);
-  }, [showRestriction]);
+  const [location, setLocation] = useLocation();
 
   // Check authentication status
-  const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/user"],
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-  });
+  const { data: user, error } = useCurrentUser();
 
-  // Show loading state while checking authentication (with timeout)
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    setGlobalRestrictionHandler((data: any) => {
+      showRestriction(data);
+      if ((data?.needsTrialSelection || data?.restrictionType === "trial_expired") && user && location !== "/trial-selection") {
+        setLocation("/trial-selection");
+      }
+    });
+  }, [showRestriction, setLocation, location, user]);
 
   // If there's an error or not authenticated, show landing page
   // This handles database connection errors gracefully

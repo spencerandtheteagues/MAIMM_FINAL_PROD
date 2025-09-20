@@ -41,6 +41,10 @@ export async function enforcePlatformAccess(
   next: NextFunction
 ) {
   try {
+    if (!req.path.startsWith('/api')) {
+      return next();
+    }
+
     // Skip enforcement for allowed endpoints
     const isAllowedEndpoint = ALLOWED_ENDPOINTS.some(endpoint => 
       req.path.startsWith(endpoint)

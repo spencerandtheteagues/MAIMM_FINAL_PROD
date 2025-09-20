@@ -513,7 +513,7 @@ export default function AdminPanel() {
   const loadCreditHistory = async (userId: string) => {
     try {
       const history = await apiRequest("GET", `/api/admin/users/${userId}/credit-history`);
-      setUserCreditHistory(history);
+      setUserCreditHistory(history as any);
       setCreditHistoryModalOpen(true);
     } catch (error: any) {
       toast({
@@ -789,7 +789,7 @@ export default function AdminPanel() {
                               <SelectItem value="starter">Starter</SelectItem>
                               <SelectItem value="professional">Professional</SelectItem>
                               <SelectItem value="business">Business</SelectItem>
-                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                              <SelectItem value="enterprise">Business</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -907,7 +907,7 @@ export default function AdminPanel() {
                         <TableCell>
                           <Badge className={getStatusColor(user.accountStatus)}>
                             {user.accountStatus}
-                            {user.isPaused && " (Paused)"}
+                            {user.accountStatus === 'paused' && " (Paused)"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -917,11 +917,11 @@ export default function AdminPanel() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {user.tier === 'free' && user.trialDaysRemaining !== null ? (
+                          {user.tier === 'free' && user.trialDaysRemaining != null ? (
                             <div className="text-sm">
                               {user.trialStatus === 'active' ? (
-                                <span className={user.trialDaysRemaining <= 3 ? 'text-red-600 font-medium' : ''}>
-                                  {user.trialDaysRemaining} days left
+                                <span className={(user.trialDaysRemaining ?? 0) <= 3 ? 'text-red-600 font-medium' : ''}>
+                                  {user.trialDaysRemaining ?? 0} days left
                                 </span>
                               ) : (
                                 <span className="text-red-600 font-medium">Expired</span>
@@ -1006,7 +1006,7 @@ export default function AdminPanel() {
                                         <SelectItem value="starter">Starter</SelectItem>
                                         <SelectItem value="professional">Professional</SelectItem>
                                         <SelectItem value="business">Business</SelectItem>
-                                        <SelectItem value="enterprise">Enterprise</SelectItem>
+                                        <SelectItem value="enterprise">Business</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -1242,7 +1242,7 @@ export default function AdminPanel() {
                             </Dialog>
 
                             {/* Pause/Unpause User */}
-                            {user.isPaused ? (
+                            {user.accountStatus === 'paused' ? (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1435,9 +1435,9 @@ export default function AdminPanel() {
                                     <DialogTitle>Manage Trial Period</DialogTitle>
                                     <DialogDescription>
                                       Extend trial for {user.fullName || user.username}
-                                      {user.trialDaysRemaining !== null && (
+                                      {user.trialDaysRemaining != null && (
                                         <div className="mt-2">
-                                          Current trial: {user.trialDaysRemaining} days remaining
+                                          Current trial: {(user.trialDaysRemaining ?? 0)} days remaining
                                         </div>
                                       )}
                                     </DialogDescription>
@@ -1710,7 +1710,7 @@ export default function AdminPanel() {
                       <SelectItem value="starter">Starter</SelectItem>
                       <SelectItem value="professional">Professional</SelectItem>
                       <SelectItem value="business">Business</SelectItem>
-                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                      <SelectItem value="enterprise">Business</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1805,7 +1805,7 @@ export default function AdminPanel() {
                     {transactions.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell>
-                          {new Date(transaction.createdAt).toLocaleString()}
+                          {transaction.createdAt ? new Date(transaction.createdAt as any).toLocaleString() : ''}
                         </TableCell>
                         <TableCell>
                           <div>
@@ -1950,7 +1950,7 @@ export default function AdminPanel() {
                 {userCreditHistory.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>
-                      {new Date(transaction.createdAt).toLocaleString()}
+                      {transaction.createdAt ? new Date(transaction.createdAt as any).toLocaleString() : ""}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{transaction.type}</Badge>

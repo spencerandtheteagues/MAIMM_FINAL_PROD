@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,15 +14,10 @@ export default function TrialSelection() {
   const { toast } = useToast();
 
   // Check if user has already selected a trial (optional - may be unauthenticated)
-  const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/user"],
-    retry: false,
-    // Don't throw errors if user is not authenticated
-    throwOnError: false,
-  });
+  const { data: user, isLoading, error } = useCurrentUser();
 
   // If user is authenticated and has already selected a trial, redirect to app
-  if (user && !user.needsTrialSelection && !isLoading) {
+  if (user && !(user as any).needsTrialSelection && !isLoading) {
     setLocation("/");
     return null;
   }
@@ -30,11 +26,8 @@ export default function TrialSelection() {
   const shouldShowContent = true;
 
   const selectTrialMutation = useMutation({
-    mutationFn: async (variant: string) => {
-      return apiRequest("/api/trial/select", {
-        method: "POST",
-        body: JSON.stringify({ variant }),
-      });
+    mutationFn: async (planId: string) => {
+      return apiRequest("POST", "/api/trial/select", { planId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -53,10 +46,9 @@ export default function TrialSelection() {
     },
   });
 
-  const handleSelection = (optionId: string, isSubscription: boolean = false, isPaidTrial: boolean = false) => {
+  const handleSelection = async (optionId: string, isSubscription: boolean = false, isPaidTrial: boolean = false) => {
     setSelectedOption(optionId);
 
-    // If user is not authenticated, redirect to auth first
     if (!user && !error) {
       const returnUrl = encodeURIComponent(`/trial-selection`);
       setLocation(`/auth?return=${returnUrl}`);
@@ -64,18 +56,41 @@ export default function TrialSelection() {
     }
 
     if (isSubscription || isPaidTrial) {
-      // For subscriptions and paid trials, redirect to Stripe checkout
       const planParam = isPaidTrial ? `${optionId}&trial=true` : optionId;
       setLocation(`/checkout?plan=${planParam}`);
-    } else {
-      // For Lite trial, activate directly (requires authentication)
-      if (!user) {
-        const returnUrl = encodeURIComponent(`/trial-selection`);
-        setLocation(`/auth?return=${returnUrl}`);
-        return;
-      }
-      selectTrialMutation.mutate(optionId);
+      return;
     }
+
+    if (optionId === "nocard7") {
+      try {
+        await apiRequest("POST", "/api/trial/select", { planId: "lite" });
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+        toast({
+          title: "Welcome to MyAiMediaMgr!",
+          description: "Your Lite trial has been activated.",
+        });
+        setLocation("/");
+      } catch (e: any) {
+        if (e?.status === 401) {
+          const returnUrl = encodeURIComponent(`/trial-selection`);
+          setLocation(`/auth?return=${returnUrl}`);
+          return;
+        }
+        toast({
+          title: "Error",
+          description: e?.message || "Failed to activate Lite trial. Please try again.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    if (!user) {
+      const returnUrl = encodeURIComponent(`/trial-selection`);
+      setLocation(`/auth?return=${returnUrl}`);
+      return;
+    }
+    selectTrialMutation.mutate(optionId);
   };
 
   const isMutating = selectTrialMutation.isPending;
@@ -201,7 +216,7 @@ export default function TrialSelection() {
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <Check className="h-3 w-3 text-green-400" />
-                  <span>AI Images & Videos</span>
+                  <span>AI Images &amp; Videos</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <Check className="h-3 w-3 text-green-400" />
@@ -338,7 +353,7 @@ export default function TrialSelection() {
               <div className="flex items-center justify-between">
                 <Crown className="h-8 w-8 text-yellow-400" />
                 <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
-                  ENTERPRISE
+                  BUSINESS
                 </span>
               </div>
               <CardTitle className="text-xl text-white">Business</CardTitle>

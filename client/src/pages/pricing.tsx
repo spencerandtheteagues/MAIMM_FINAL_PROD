@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 const SUBSCRIPTION_PLANS = [
   {
@@ -67,9 +68,20 @@ const SUBSCRIPTION_PLANS = [
 export default function PricingPage() {
   const [, setLocation] = useLocation();
 
-  const handleSelectPlan = (planId: string) => {
-    // Redirect to custom checkout page
-    setLocation(`/checkout?plan=${planId}`);
+  const handleSelectPlan = async (planId: string) => {
+    try {
+      const res = await apiRequest("POST", "/api/stripe/create-checkout-session", { planId });
+      if ((res as any)?.url) {
+        window.location.href = (res as any).url;
+      } else {
+        setLocation("/billing");
+      }
+    } catch (err: any) {
+      if (err?.status === 401) {
+        setLocation(`/auth?return=${encodeURIComponent("/pricing")}`);
+        return;
+      }
+    }
   };
 
   return (
@@ -146,7 +158,7 @@ export default function PricingPage() {
             className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800"
             data-testid="button-start-trial"
           >
-            View All Plans & Trials
+            View All Plans &amp; Trials
           </Button>
         </div>
       </div>

@@ -93,7 +93,7 @@ export function createScheduleRoutes(storage: any): Router {
         post = await storage.updatePost(data.draftId, {
           status: "scheduled",
           scheduledFor: data.scheduledAt,
-          platforms: [data.platform],
+          platform: data.platform,
           content: data.caption,
           tags: data.tags
         });
@@ -102,7 +102,7 @@ export function createScheduleRoutes(storage: any): Router {
         post = await storage.createPost({
           userId,
           content: data.caption,
-          platforms: [data.platform],
+          platform: data.platform,
           status: "scheduled",
           scheduledFor: data.scheduledAt,
           imageUrl: data.mediaUrls?.[0],

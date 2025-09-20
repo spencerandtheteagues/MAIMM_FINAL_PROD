@@ -50,7 +50,7 @@ export function applyTheme(theme: Theme): void {
   // Safer reflow trigger that doesn't hide content
   // This forces style recalculation without display:none
   document.documentElement.style.opacity = '0.999';
-  void document.documentElement.offsetHeight; // Trigger reflow
+  void document.documentElement.offsetHeight;
   document.documentElement.style.opacity = '';
 
   // Double-check the theme was applied

@@ -192,7 +192,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
   
   const getTierDisplay = (tier?: string) => {
     switch(tier) {
-      case 'enterprise': return { name: 'Enterprise', icon: Crown, color: 'bg-purple-500' };
+      case 'enterprise': return { name: 'Business', icon: Crown, color: 'bg-purple-500' };
       case 'professional': return { name: 'Professional', icon: Star, color: 'bg-blue-500' };
       case 'starter': return { name: 'Starter', color: 'bg-green-500' };
       default: return { name: 'Free Trial', color: 'bg-gray-500' };
@@ -497,7 +497,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
 
               <DropdownMenuItem onClick={() => setLocation('/billing')} className="cursor-pointer">
                 <CreditCard className="w-4 h-4 mr-2" />
-                Billing & Upgrade
+                Billing &amp; Upgrade
                 {user?.tier === 'free' && (
                   <Badge variant="default" className="ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                     Upgrade
@@ -515,7 +515,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
 
               <DropdownMenuItem onClick={() => setLocation('/help')} className="cursor-pointer">
                 <HelpCircle className="w-4 h-4 mr-2" />
-                Help & Support
+                Help &amp; Support
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

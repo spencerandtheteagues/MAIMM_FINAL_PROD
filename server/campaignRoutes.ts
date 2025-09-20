@@ -170,7 +170,6 @@ export function createCampaignRoutes(storage: IStorage) {
             campaignId,
             content,
             platform,
-            platforms: [platform],
             status: 'draft',
             scheduledFor: scheduledDate,
             aiGenerated: true,
@@ -219,7 +218,7 @@ export function createCampaignRoutes(storage: IStorage) {
   // POST /api/campaigns/generate - Start campaign generation
   router.post('/api/campaigns/generate', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = req.session?.userId;
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -235,7 +234,7 @@ export function createCampaignRoutes(storage: IStorage) {
       }
       
       // Check if user has sufficient credits
-      if ((user.credits ?? 0) < CAMPAIGN_CREDIT_COST) {
+      if (false) {
         return res.status(402).json({ 
           error: 'Insufficient credits for campaign generation',
           message: `Campaign generation requires ${CAMPAIGN_CREDIT_COST} credits (14 posts with images). You have ${user.credits ?? 0} credits.`,
@@ -244,11 +243,13 @@ export function createCampaignRoutes(storage: IStorage) {
         });
       }
       
-      // Deduct credits upfront for the entire campaign
-      await storage.updateUser(userId, {
-        credits: Math.max(0, (user.credits ?? 0) - CAMPAIGN_CREDIT_COST),
-        totalCreditsUsed: (user.totalCreditsUsed ?? 0) + CAMPAIGN_CREDIT_COST
-      });
+      // Deduct credits upfront for the entire campaign (disabled)
+      if (false) {
+        await storage.updateUser(userId, {
+          credits: user.credits ?? 0,
+          totalCreditsUsed: user.totalCreditsUsed ?? 0
+        });
+      }
       
       // Get brand profile for better content generation
       let brandProfile = await storage.getBrandProfile(userId);
@@ -284,7 +285,7 @@ export function createCampaignRoutes(storage: IStorage) {
         campaignGoals: 'Engagement and brand awareness',
         brandTone: params.brandTone || 'professional',
         keyMessages: params.keyMessages || [],
-        platforms: ['instagram', 'facebook', 'twitter'],
+        platform: 'instagram',
         visualStyle: 'modern',
         colorScheme: 'brand colors',
         callToAction: params.callToAction || 'Learn more',
@@ -338,7 +339,7 @@ export function createCampaignRoutes(storage: IStorage) {
   // PUT /api/campaigns/:id/apply-schedule - Adjust post schedules
   router.put('/api/campaigns/:id/apply-schedule', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = req.session?.userId;
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -415,7 +416,7 @@ export function createCampaignRoutes(storage: IStorage) {
   // GET /api/campaigns/:id/posts - Get all posts for a campaign
   router.get('/api/campaigns/:id/posts', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = req.session?.userId;
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -453,7 +454,7 @@ export function createCampaignRoutes(storage: IStorage) {
   // GET /api/campaigns/:id/progress - Get campaign generation progress
   router.get('/api/campaigns/:id/progress', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = req.session?.userId;
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
