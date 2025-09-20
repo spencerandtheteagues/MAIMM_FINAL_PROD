@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient, setGlobalRestrictionHandler } from "./lib/queryClient";
+import { getQueryFn } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
