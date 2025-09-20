@@ -52,6 +52,10 @@ function getUserId(req: any): string | null {
 
 // Middleware to check if user needs to select a trial
 async function checkTrialSelection(req: any, res: any, next: Function) {
+  if (!req.path.startsWith('/api')) {
+    return next();
+  }
+
   // CRITICAL: Skip this check during OAuth flow to prevent interrupting authentication
   // Google OAuth callback MUST complete before checking trial selection
   if (req.path === '/api/trial/select' ||
