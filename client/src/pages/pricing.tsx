@@ -146,7 +146,7 @@ export default function PricingPage() {
             className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800"
             data-testid="button-start-trial"
           >
-            View All Plans & Trials
+            View All Plans &amp; Trials
           </Button>
         </div>
       </div>

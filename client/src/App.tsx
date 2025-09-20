@@ -39,17 +39,24 @@ import TrialExpired from "./pages/trial-expired";
 import { NotificationPopup } from "./components/NotificationPopup";
 import { TrialCountdown } from "./components/TrialCountdown";
 import { useRestrictionHandler } from "./hooks/useRestrictionHandler";
+import { useLocation } from "wouter"
 import { useEffect, useState } from "react";
 
 function Router() {
   // Initialize restriction handler
   const { restrictionState, showRestriction, hideRestriction } = useRestrictionHandler();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [, setLocation] = useLocation();
   
   // Set up global restriction handler
   useEffect(() => {
-    setGlobalRestrictionHandler(showRestriction);
-  }, [showRestriction]);
+    setGlobalRestrictionHandler((data: any) => {
+      showRestriction(data);
+      if (data?.needsTrialSelection || data?.restrictionType === "trial_expired") {
+        setLocation("/trial-selection");
+      }
+    });
+  }, [showRestriction, setLocation]);
 
   // Check authentication status
   const { data: user, isLoading, error } = useQuery({
