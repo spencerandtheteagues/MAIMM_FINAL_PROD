@@ -58,17 +58,7 @@ function Router() {
   }, [showRestriction, setLocation, location]);
 
   // Check authentication status
-  const [loadStart] = useState(() => Date.now());
-  const { data: user, isLoading, error } = useCurrentUser();
-
-  // Show loading state while checking authentication (with timeout)
-  if (isLoading && Date.now() - loadStart < 1200) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
+  const { data: user, error } = useCurrentUser();
 
   // If there's an error or not authenticated, show landing page
   // This handles database connection errors gracefully
