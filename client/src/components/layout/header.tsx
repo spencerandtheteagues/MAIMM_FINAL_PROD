@@ -417,23 +417,6 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
               >
                 <div className="flex items-center gap-2">
                   <CalendarDays className="w-4 h-4 text-orange-500" />
-              <DropdownMenuItem
-                onClick={() => {
-                  setTheme('professional');
-                  toast({
-                    title: "Theme Changed",
-                    description: "Switched to Professional theme",
-                    duration: 2000,
-                  });
-                }}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span>Professional</span>
-                  {theme === 'professional' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
-                </div>
-              </DropdownMenuItem>
-
                   <span>Schedule Post</span>
                 </div>
               </DropdownMenuItem>
@@ -514,7 +497,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
 
               <DropdownMenuItem onClick={() => setLocation('/billing')} className="cursor-pointer">
                 <CreditCard className="w-4 h-4 mr-2" />
-                Billing & Upgrade
+                Billing &amp; Upgrade
                 {user?.tier === 'free' && (
                   <Badge variant="default" className="ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                     Upgrade
@@ -532,7 +515,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
 
               <DropdownMenuItem onClick={() => setLocation('/help')} className="cursor-pointer">
                 <HelpCircle className="w-4 h-4 mr-2" />
-                Help & Support
+                Help &amp; Support
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

@@ -1,0 +1,266 @@
+name: Test and Deploy
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  TEST_URL: ${{ github.event_name == 'pull_request' && 'http://localhost:5000' || 'https://myaimediamgr.onrender.com' }}
+
+jobs:
+  test-critical-flows:
+    name: Critical Flow Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Critical Flow Tests
+        run: npm run test:critical
+        env:
+          TEST_URL: ${{ env.TEST_URL }}
+          HEADLESS: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-flow-results
+          path: test-reports/
+
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-screenshots
+          path: test-screenshots/
+
+  test-user-journey:
+    name: User Journey Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run User Journey Tests
+        run: npm run test:journey
+        env:
+          TEST_URL: ${{ env.TEST_URL }}
+          HEADLESS: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-test-results
+          path: test-reports/
+
+  test-performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Performance Tests
+        run: npm run test:perf
+        env:
+          TEST_URL: ${{ env.TEST_URL }}
+          CONNECTIONS: 20
+          DURATION: 30
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: test-reports/performance/
+
+  quality-gate:
+    name: Quality Gate Decision
+    needs: [test-critical-flows, test-user-journey]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Analyze test results
+        id: quality-check
+        run: |
+          # Check if all required tests passed
+          CRITICAL_PASSED="${{ needs.test-critical-flows.result }}"
+          JOURNEY_PASSED="${{ needs.test-user-journey.result }}"
+
+          if [[ "$CRITICAL_PASSED" == "success" && "$JOURNEY_PASSED" == "success" ]]; then
+            echo "quality_gate=passed" >> $GITHUB_OUTPUT
+            echo "✅ Quality gate: PASSED"
+            exit 0
+          else
+            echo "quality_gate=failed" >> $GITHUB_OUTPUT
+            echo "❌ Quality gate: FAILED"
+            echo "Critical Flow Tests: $CRITICAL_PASSED"
+            echo "User Journey Tests: $JOURNEY_PASSED"
+            exit 1
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const quality = '${{ steps.quality-check.outputs.quality_gate }}';
+            const emoji = quality === 'passed' ? '✅' : '❌';
+            const status = quality === 'passed' ? 'PASSED' : 'FAILED';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ${emoji} Quality Gate: ${status}\n\n` +
+                    `### Test Results\n` +
+                    `- Critical Flow Tests: ${{ needs.test-critical-flows.result }}\n` +
+                    `- User Journey Tests: ${{ needs.test-user-journey.result }}\n\n` +
+                    `View full test results in the [Actions tab](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
+
+  deploy-to-render:
+    name: Deploy to Render
+    needs: [quality-gate]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && needs.quality-gate.result == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Render Deployment
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys \
+            -d '{"clearCache": false}'
+
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Run post-deployment smoke tests
+        run: |
+          npm ci
+          npm run test:smoke
+        env:
+          TEST_URL: https://myaimediamgr.onrender.com
+
+      - name: Notify Slack on success
+        if: success() && vars.SLACK_WEBHOOK
+        run: |
+          curl -X POST ${{ vars.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "✅ Deployment successful!",
+              "attachments": [{
+                "color": "good",
+                "fields": [
+                  {"title": "Service", "value": "MyAiMediaMgr", "short": true},
+                  {"title": "Environment", "value": "Production", "short": true},
+                  {"title": "Version", "value": "${{ github.sha }}", "short": false}
+                ]
+              }]
+            }'
+
+      - name: Notify Slack on failure
+        if: failure() && vars.SLACK_WEBHOOK
+        run: |
+          curl -X POST ${{ vars.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "❌ Deployment failed!",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Service", "value": "MyAiMediaMgr", "short": true},
+                  {"title": "Environment", "value": "Production", "short": true},
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": false},
+                  {"title": "Action", "value": "Check logs for details", "short": false}
+                ]
+              }]
+            }'
+
+  rollback-on-failure:
+    name: Rollback on Failure
+    needs: [deploy-to-render]
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Trigger rollback
+        run: |
+          echo "🔄 Initiating rollback..."
+          # Add Render rollback API call here if needed
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/rollback
+
+      - name: Notify team
+        if: vars.SLACK_WEBHOOK
+        run: |
+          curl -X POST ${{ vars.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🔄 Rollback initiated due to deployment failure",
+              "attachments": [{
+                "color": "warning",
+                "fields": [
+                  {"title": "Service", "value": "MyAiMediaMgr", "short": true},
+                  {"title": "Action Required", "value": "Please investigate the failure", "short": false}
+                ]
+              }]
+            }'

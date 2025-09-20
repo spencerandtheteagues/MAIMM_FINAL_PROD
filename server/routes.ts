@@ -52,17 +52,18 @@ function getUserId(req: any): string | null {
 
 // Middleware to check if user needs to select a trial
 async function checkTrialSelection(req: any, res: any, next: Function) {
-  const userId = getUserId(req);
-  
-  // Skip check for auth endpoints, verification, trial selection, and Stripe checkout
+  // CRITICAL: Skip this check during OAuth flow to prevent interrupting authentication
+  // Google OAuth callback MUST complete before checking trial selection
   if (req.path === '/api/trial/select' ||
       req.path === '/api/user' ||
-      req.path.startsWith('/api/auth/') ||
+      req.path.startsWith('/api/auth/') || // Covers all auth endpoints including OAuth callbacks
       req.path.startsWith('/api/verification/') ||
       req.path.startsWith('/api/stripe/') ||
       req.path.startsWith('/api/billing/')) {
     return next();
   }
+
+  const userId = getUserId(req);
   
   if (userId) {
     try {

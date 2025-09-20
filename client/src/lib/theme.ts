@@ -41,17 +41,29 @@ export function applyTheme(theme: Theme): void {
   document.documentElement.classList.remove('theme-neon-pink', 'theme-neon-blue', 'theme-professional');
   document.documentElement.classList.add(`theme-${theme}`);
 
-  // Force immediate style recalculation and reflow
+  // Force immediate style recalculation without hiding the page
+  // Using a safer method that doesn't risk leaving the page hidden
   const rootComputedStyle = getComputedStyle(document.documentElement);
   const primaryColor = rootComputedStyle.getPropertyValue('--primary').trim();
   console.log('[Theme] Applied theme, primary color:', primaryColor);
 
+  // Safer reflow trigger that doesn't hide content
+  // This forces style recalculation without display:none
+  document.documentElement.style.opacity = '0.999';
+  void document.documentElement.offsetHeight;
+  document.documentElement.style.opacity = '';
 
   // Double-check the theme was applied
   setTimeout(() => {
     const finalTheme = document.documentElement.getAttribute('data-theme');
     const finalColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
     console.log('[Theme] Final verification - theme:', finalTheme, 'primary color:', finalColor);
+
+    // Emergency fallback: ensure body is visible
+    if (document.body.style.display === 'none') {
+      console.error('[Theme] Emergency: body was hidden, making visible');
+      document.body.style.display = '';
+    }
   }, 50);
 }
 

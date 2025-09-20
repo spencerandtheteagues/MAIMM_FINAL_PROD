@@ -1,0 +1,108 @@
+# Render.com Test Configuration
+# Add these sections to your existing render.yaml
+
+# Pre-deploy command to run tests before deployment
+preDeployCommand: |
+  echo "Running pre-deployment tests..."
+  npm install
+  npm run test:smoke || exit 1
+  echo "Pre-deployment tests passed!"
+
+# Health check configuration
+healthCheckPath: /api/health
+healthCheckHost: 0.0.0.0
+
+# Environment-specific test configurations
+environments:
+  - key: production
+    branch: main
+    buildCommand: npm run build
+    startCommand: npm start
+    preDeployCommand: |
+      echo "Running production pre-deployment tests..."
+      npm run test:ci || exit 1
+      echo "All tests passed! Proceeding with deployment..."
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_ENV
+        value: production
+      - key: RUN_TESTS_ON_DEPLOY
+        value: true
+
+  - key: staging
+    branch: staging
+    buildCommand: npm run build
+    startCommand: npm start
+    preDeployCommand: |
+      echo "Running staging pre-deployment tests..."
+      npm run test:smoke || exit 1
+      echo "Smoke tests passed!"
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: DEPLOYMENT_ENV
+        value: staging
+      - key: RUN_TESTS_ON_DEPLOY
+        value: true
+
+# Post-deploy smoke test job
+jobs:
+  - type: web
+    name: post-deploy-smoke-tests
+    env: docker
+    dockerfilePath: ./Dockerfile.test
+    dockerCommand: npm run test:smoke
+    schedule: "@deployment"
+    envVars:
+      - key: TEST_URL
+        fromService:
+          type: web
+          name: myaimediamgr
+          property: hostport
+
+# Scheduled daily health check job
+  - type: cron
+    name: daily-health-check
+    env: node
+    buildCommand: npm install
+    startCommand: npm run test:critical
+    schedule: "0 8 * * *"  # Daily at 8 AM UTC
+    envVars:
+      - key: TEST_URL
+        value: https://myaimediamgr.onrender.com
+      - key: SLACK_WEBHOOK
+        fromDatabase:
+          name: myaimediamgr-db
+          property: connectionString
+
+# Alert configuration for test failures
+alerts:
+  - name: test-failure-alert
+    type: email
+    events:
+      - deploy_failed
+      - job_failed
+    channels:
+      - email: admin@myaimediamgr.com
+
+  - name: performance-degradation-alert
+    type: webhook
+    events:
+      - health_check_failed
+    webhook:
+      url: ${SLACK_WEBHOOK}
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "text": "⚠️ Performance degradation detected on MyAiMediaMgr",
+          "attachments": [{
+            "color": "warning",
+            "fields": [{
+              "title": "Environment",
+              "value": "${RENDER_SERVICE_NAME}",
+              "short": true
+            }]
+          }]
+        }
