@@ -26,8 +26,8 @@ export default function TrialSelection() {
   const shouldShowContent = true;
 
   const selectTrialMutation = useMutation({
-    mutationFn: async (variant: string) => {
-      return apiRequest("POST", "/api/trial/select", { variant });
+    mutationFn: async (planId: string) => {
+      return apiRequest("POST", "/api/trial/select", { planId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -46,10 +46,9 @@ export default function TrialSelection() {
     },
   });
 
-  const handleSelection = (optionId: string, isSubscription: boolean = false, isPaidTrial: boolean = false) => {
+  const handleSelection = async (optionId: string, isSubscription: boolean = false, isPaidTrial: boolean = false) => {
     setSelectedOption(optionId);
 
-    // If user is not authenticated, redirect to auth first
     if (!user && !error) {
       const returnUrl = encodeURIComponent(`/trial-selection`);
       setLocation(`/auth?return=${returnUrl}`);
@@ -57,18 +56,41 @@ export default function TrialSelection() {
     }
 
     if (isSubscription || isPaidTrial) {
-      // For subscriptions and paid trials, redirect to Stripe checkout
       const planParam = isPaidTrial ? `${optionId}&trial=true` : optionId;
       setLocation(`/checkout?plan=${planParam}`);
-    } else {
-      // For Lite trial, activate directly (requires authentication)
-      if (!user) {
-        const returnUrl = encodeURIComponent(`/trial-selection`);
-        setLocation(`/auth?return=${returnUrl}`);
-        return;
-      }
-      selectTrialMutation.mutate(optionId);
+      return;
     }
+
+    if (optionId === "nocard7") {
+      try {
+        await apiRequest("POST", "/api/trial/select", { planId: "lite" });
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+        toast({
+          title: "Welcome to MyAiMediaMgr!",
+          description: "Your Lite trial has been activated.",
+        });
+        setLocation("/");
+      } catch (e: any) {
+        if (e?.status === 401) {
+          const returnUrl = encodeURIComponent(`/trial-selection`);
+          setLocation(`/auth?return=${returnUrl}`);
+          return;
+        }
+        toast({
+          title: "Error",
+          description: e?.message || "Failed to activate Lite trial. Please try again.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    if (!user) {
+      const returnUrl = encodeURIComponent(`/trial-selection`);
+      setLocation(`/auth?return=${returnUrl}`);
+      return;
+    }
+    selectTrialMutation.mutate(optionId);
   };
 
   const isMutating = selectTrialMutation.isPending;

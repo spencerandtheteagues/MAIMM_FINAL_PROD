@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { signJwt } from './auth/jwt';
 import crypto from 'crypto';
 import { storage } from './storage'; // Import our storage layer
-async function generateUniqueUsername(rawBase: string) {
+export async function generateUniqueUsername(rawBase: string) {
   const baseRaw = (rawBase || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
   const base = (baseRaw || `user${Date.now()}`).slice(0, 20);
   let candidate = base;
@@ -28,45 +28,29 @@ async function findOrCreateUserFromGoogle(profile: any) {
     throw new Error('No email found in Google profile');
   }
 
-  let user = await storage.getUserByEmail(email);
-
-  if (!user) {
-    const base = (profile.displayName || email.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    const uniqueUsername = await generateUniqueUsername(base);
-    const newUser = {
-      email: email,
-      username: uniqueUsername,
-      fullName: profile.displayName,
-      firstName: profile.name?.givenName,
-      lastName: profile.name?.familyName,
-      googleAvatar: profile.photos?.[0]?.value,
-      role: 'user',
-      tier: 'free',
-      credits: 0,
-      accountStatus: 'active',
-      subscriptionStatus: 'trial',
-      needsTrialSelection: true,
-      emailVerified: true,
-      trialStartDate: null,
-      trialEndDate: null,
-    };
-    user = await storage.createUser(newUser);
-  } else {
-    // User exists, update their avatar and last login time
+  const existing = await storage.getUserByEmail(email);
+  if (existing) {
     const updateData: any = {
       googleAvatar: profile.photos?.[0]?.value,
       lastLoginAt: new Date()
     };
-
-    // If user already has a trial plan selected, clear needsTrialSelection flag
-    if (user.trialPlan && user.needsTrialSelection) {
+    if (existing.trialPlan && existing.needsTrialSelection) {
       updateData.needsTrialSelection = false;
     }
-
-    user = await storage.updateUser(user.id, updateData);
+    const updated = await storage.updateUser(existing.id, updateData);
+    return updated;
   }
 
-  return user;
+  const base = (profile.displayName || email.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  const pending = {
+    email,
+    firstName: profile.name?.givenName || null,
+    lastName: profile.name?.familyName || null,
+    fullName: profile.displayName || null,
+    googleAvatar: profile.photos?.[0]?.value || null,
+    baseUsername: base || `user${Date.now()}`
+  };
+  return { pendingOAuth: pending };
 }
 
 function getCallbackUrl(req: Request) {
@@ -118,7 +102,6 @@ export function registerGoogleAuth(app: any) {
 
   // Callback → mint JWT → cookie → redirect
   app.get('/api/auth/google/callback', (req: Request, res: Response, next: NextFunction) => {
-    // State check
     const { state } = req.query;
     const savedState = req.cookies.oauth_state;
     res.clearCookie('oauth_state');
@@ -128,16 +111,30 @@ export function registerGoogleAuth(app: any) {
 
     const callbackURL = getCallbackUrl(req);
     (passport.authenticate as any)('google', { session: false, callbackURL, failureRedirect: '/auth?error=google' },
-      async (err: Error, user: any) => {
+      async (err: Error, result: any) => {
         if (err) return next(err);
-        if (!user?.id) return res.redirect('/auth?error=no_user');
+
+        if (result?.pendingOAuth) {
+          const pending = JSON.stringify(result.pendingOAuth);
+          res.cookie('pending_oauth', pending, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 10 * 60 * 1000,
+          });
+          res.clearCookie('oauth_return_to');
+          return res.redirect('/trial-selection');
+        }
+
+        if (!result?.id) return res.redirect('/auth?error=no_user');
 
         const token = signJwt({
-          sub: String(user.id),
-          email: user.email,
-          name: user.fullName,
-          picture: user.googleAvatar,
-          roles: [user.role],
+          sub: String(result.id),
+          email: result.email,
+          name: result.fullName,
+          picture: result.googleAvatar,
+          roles: [result.role],
         });
 
         res.cookie('mam_jwt', token, {
@@ -148,14 +145,13 @@ export function registerGoogleAuth(app: any) {
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        // Smart redirect logic based on user role and status
         let redirectUrl = '/';
-        if (user.role === 'admin' || user.isAdmin) {
+        if (result.role === 'admin' || result.isAdmin) {
           redirectUrl = '/';
-        } else if (user.needsTrialSelection) {
+        } else if (result.needsTrialSelection) {
           redirectUrl = '/trial-selection';
-        } else if (!user.emailVerified) {
-          redirectUrl = `/verify-email?email=${encodeURIComponent(user.email)}`;
+        } else if (!result.emailVerified) {
+          redirectUrl = `/verify-email?email=${encodeURIComponent(result.email)}`;
         } else {
           redirectUrl = '/';
         }
