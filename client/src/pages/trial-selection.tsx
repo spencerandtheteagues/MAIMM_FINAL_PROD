@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, CreditCard, Sparkles, Zap, Building, Users, TrendingUp, BarChart, Crown, Star } from "lucide-react";
@@ -199,7 +199,7 @@ export default function TrialSelection() {
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <Check className="h-3 w-3 text-green-400" />
-                  <span>AI Images & Videos</span>
+                  <span>AI Images &amp; Videos</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <Check className="h-3 w-3 text-green-400" />
