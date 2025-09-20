@@ -235,7 +235,7 @@ export function createCampaignRoutes(storage: IStorage) {
       }
       
       // Check if user has sufficient credits
-      if ((user.credits ?? 0) < CAMPAIGN_CREDIT_COST) {
+      if (user.role !== 'admin' && (user.credits ?? 0) < CAMPAIGN_CREDIT_COST) {
         return res.status(402).json({ 
           error: 'Insufficient credits for campaign generation',
           message: `Campaign generation requires ${CAMPAIGN_CREDIT_COST} credits (14 posts with images). You have ${user.credits ?? 0} credits.`,
@@ -244,11 +244,13 @@ export function createCampaignRoutes(storage: IStorage) {
         });
       }
       
-      // Deduct credits upfront for the entire campaign
-      await storage.updateUser(userId, {
-        credits: Math.max(0, (user.credits ?? 0) - CAMPAIGN_CREDIT_COST),
-        totalCreditsUsed: (user.totalCreditsUsed ?? 0) + CAMPAIGN_CREDIT_COST
-      });
+      // Deduct credits upfront for the entire campaign (skip for admins)
+      if (user.role !== 'admin') {
+        await storage.updateUser(userId, {
+          credits: Math.max(0, (user.credits ?? 0) - CAMPAIGN_CREDIT_COST),
+          totalCreditsUsed: (user.totalCreditsUsed ?? 0) + CAMPAIGN_CREDIT_COST
+        });
+      }
       
       // Get brand profile for better content generation
       let brandProfile = await storage.getBrandProfile(userId);

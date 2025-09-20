@@ -192,7 +192,7 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
   
   const getTierDisplay = (tier?: string) => {
     switch(tier) {
-      case 'enterprise': return { name: 'Enterprise', icon: Crown, color: 'bg-purple-500' };
+      case 'enterprise': return { name: 'Business', icon: Crown, color: 'bg-purple-500' };
       case 'professional': return { name: 'Professional', icon: Star, color: 'bg-blue-500' };
       case 'starter': return { name: 'Starter', color: 'bg-green-500' };
       default: return { name: 'Free Trial', color: 'bg-gray-500' };

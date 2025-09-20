@@ -789,7 +789,7 @@ export default function AdminPanel() {
                               <SelectItem value="starter">Starter</SelectItem>
                               <SelectItem value="professional">Professional</SelectItem>
                               <SelectItem value="business">Business</SelectItem>
-                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                              <SelectItem value="enterprise">Business</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1006,7 +1006,7 @@ export default function AdminPanel() {
                                         <SelectItem value="starter">Starter</SelectItem>
                                         <SelectItem value="professional">Professional</SelectItem>
                                         <SelectItem value="business">Business</SelectItem>
-                                        <SelectItem value="enterprise">Enterprise</SelectItem>
+                                        <SelectItem value="enterprise">Business</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -1710,7 +1710,7 @@ export default function AdminPanel() {
                       <SelectItem value="starter">Starter</SelectItem>
                       <SelectItem value="professional">Professional</SelectItem>
                       <SelectItem value="business">Business</SelectItem>
-                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                      <SelectItem value="enterprise">Business</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

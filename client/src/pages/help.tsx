@@ -32,15 +32,15 @@ const faqs = [
   },
   {
     question: "How do I upgrade my subscription?",
-    answer: "Go to the Billing page to view available plans and upgrade. You can choose from Starter ($15/mo), Professional ($49/mo), or Enterprise ($199/mo) plans."
+    answer: "Go to the Billing page to view available plans and upgrade. You can choose from Starter ($15/mo), Professional ($49/mo), or Business ($199/mo) plans."
   },
   {
     question: "What's the difference between subscription tiers?",
-    answer: "Each tier offers different features: Starter includes 3 accounts and 50 posts/month, Professional includes 10 accounts and unlimited posts, Enterprise includes unlimited accounts and premium features."
+    answer: "Each tier offers different features: Starter includes 3 accounts and 50 posts/month, Professional includes 10 accounts and unlimited posts, Business includes unlimited accounts and premium features."
   },
   {
     question: "How long does support take to respond?",
-    answer: "We aim to respond to all support inquiries within 48 hours. Priority support (24hr) is available for Professional plans, and 4hr response for Enterprise plans."
+    answer: "We aim to respond to all support inquiries within 48 hours. Priority support (24hr) is available for Professional plans, and 4hr response for Business plans."
   },
   {
     question: "Can I cancel my subscription anytime?",
@@ -296,7 +296,7 @@ export default function Help() {
                 {user?.tier === "free" && (
                   <div className="mt-4 p-3 bg-background rounded-lg">
                     <p className="text-xs text-muted-foreground">
-                      Upgrade to Professional for 24hr support or Enterprise for 4hr priority support
+                      Upgrade to Professional for 24hr support or Business for 4hr priority support
                     </p>
                     <Button 
                       variant="outline" 

@@ -331,7 +331,7 @@ export default function TrialSelection() {
               <div className="flex items-center justify-between">
                 <Crown className="h-8 w-8 text-yellow-400" />
                 <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
-                  ENTERPRISE
+                  BUSINESS
                 </span>
               </div>
               <CardTitle className="text-xl text-white">Business</CardTitle>

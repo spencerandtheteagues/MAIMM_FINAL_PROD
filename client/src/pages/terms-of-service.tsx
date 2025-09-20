@@ -104,7 +104,7 @@ export default function TermsOfService() {
               <li>Free Trial: Limited-time access with basic features</li>
               <li>Starter Plan: Monthly subscription for small businesses</li>
               <li>Professional Plan: Enhanced features for growing businesses</li>
-              <li>Business Plan: Advanced features for enterprises</li>
+              <li>Business Plan: Advanced features for businesses</li>
             </ul>
             
             <h3 className="text-lg font-medium mb-2">Credit System</h3>
