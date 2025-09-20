@@ -4,6 +4,22 @@ import type { Request, Response, NextFunction } from 'express';
 import { signJwt } from './auth/jwt';
 import crypto from 'crypto';
 import { storage } from './storage'; // Import our storage layer
+async function generateUniqueUsername(rawBase: string) {
+  const baseRaw = (rawBase || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  const base = (baseRaw || `user${Date.now()}`).slice(0, 20);
+  let candidate = base;
+  let suffix = 1;
+  while (await storage.getUserByUsername(candidate)) {
+    candidate = `${base}${suffix}`;
+    suffix++;
+    if (suffix > 100) {
+      candidate = `${base}-${Date.now()}`;
+      break;
+    }
+  }
+  return candidate;
+}
+
 
 // This function replaces the placeholder and uses our actual database logic
 async function findOrCreateUserFromGoogle(profile: any) {
@@ -15,24 +31,24 @@ async function findOrCreateUserFromGoogle(profile: any) {
   let user = await storage.getUserByEmail(email);
 
   if (!user) {
-    // User doesn't exist, create a new one
+    const base = (profile.displayName || email.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    const uniqueUsername = await generateUniqueUsername(base);
     const newUser = {
       email: email,
-      username: profile.displayName || email.split('@')[0],
+      username: uniqueUsername,
       fullName: profile.displayName,
       firstName: profile.name?.givenName,
       lastName: profile.name?.familyName,
       googleAvatar: profile.photos?.[0]?.value,
-      // Default values for a new user
       role: 'user',
       tier: 'free',
-      credits: 0, // No credits until trial selected
+      credits: 0,
       accountStatus: 'active',
-      subscriptionStatus: 'trial', // Set to 'trial' as they need to select one
-      needsTrialSelection: true, // NEW USERS MUST SELECT A TRIAL
-      emailVerified: true, // Google OAuth users are pre-verified
-      trialStartDate: null, // No trial until they select one
-      trialEndDate: null, // No trial until they select one
+      subscriptionStatus: 'trial',
+      needsTrialSelection: true,
+      emailVerified: true,
+      trialStartDate: null,
+      trialEndDate: null,
     };
     user = await storage.createUser(newUser);
   } else {
@@ -92,7 +108,7 @@ export function registerGoogleAuth(app: any) {
     }
 
     const callbackURL = getCallbackUrl(req);
-    passport.authenticate('google', {
+    (passport.authenticate as any)('google', {
       session: false,
       scope: ['openid', 'email', 'profile'],
       state,
@@ -111,7 +127,7 @@ export function registerGoogleAuth(app: any) {
     }
 
     const callbackURL = getCallbackUrl(req);
-    passport.authenticate('google', { session: false, callbackURL, failureRedirect: '/auth?error=google' },
+    (passport.authenticate as any)('google', { session: false, callbackURL, failureRedirect: '/auth?error=google' },
       async (err: Error, user: any) => {
         if (err) return next(err);
         if (!user?.id) return res.redirect('/auth?error=no_user');
