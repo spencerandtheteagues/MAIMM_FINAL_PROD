@@ -52,7 +52,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  skip: (req, _res) => req.path === '/api/user',
+  skip: (req, _res) => req.path.startsWith('/api/user'),
 });
 
 // Apply rate limiting to API routes
