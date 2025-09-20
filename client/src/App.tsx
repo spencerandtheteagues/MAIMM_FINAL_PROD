@@ -48,6 +48,9 @@ function Router() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [location, setLocation] = useLocation();
 
+  // Check authentication status
+  const { data: user, error } = useCurrentUser();
+
   useEffect(() => {
     setGlobalRestrictionHandler((data: any) => {
       showRestriction(data);
@@ -56,9 +59,6 @@ function Router() {
       }
     });
   }, [showRestriction, setLocation, location, user]);
-
-  // Check authentication status
-  const { data: user, error } = useCurrentUser();
 
   // If there's an error or not authenticated, show landing page
   // This handles database connection errors gracefully
